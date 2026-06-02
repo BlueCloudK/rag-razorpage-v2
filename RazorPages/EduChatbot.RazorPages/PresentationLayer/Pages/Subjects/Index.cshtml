@@ -1,0 +1,49 @@
+@page
+@model EduChatbot.RazorPages.Pages.Subjects.IndexModel
+@{
+    ViewData["Title"] = "Subject Management";
+}
+
+<section class="workspace">
+    <div class="topbar">
+        <div>
+            <p class="eyebrow">Subjects</p>
+            <h1>Subject management</h1>
+            <p>Create demo subjects, open a workspace, or reset test data when needed.</p>
+        </div>
+        <a class="secondary" asp-page="/Index">Back to dashboard</a>
+    </div>
+
+    @if (User.IsInRole("Admin"))
+    {
+        <form method="post" asp-page-handler="Create" class="inline-form">
+            <input asp-for="Input.Name" placeholder="Subject name" />
+            <input asp-for="Input.Code" placeholder="Subject code" />
+            <button type="submit">Add subject</button>
+        </form>
+    }
+
+    <div class="subject-grid">
+        @foreach (var subject in Model.Subjects)
+        {
+            var indexed = subject.Documents?.Count(d => d.IsIndexed) ?? 0;
+            var total = subject.Documents?.Count ?? 0;
+            <article class="subject-card">
+                <div>
+                    <span class="code">@subject.Code</span>
+                    <h2>@subject.Name</h2>
+                    <p>@indexed/@total indexed documents</p>
+                </div>
+                <div class="actions">
+                    <a asp-page="/Chat/Index" asp-route-subjectId="@subject.Id">Chat</a>
+                    @if (User.IsInRole("Admin"))
+                    {
+                        <form method="post" asp-page-handler="Delete" asp-route-id="@subject.Id">
+                            <button type="submit" class="danger">Delete</button>
+                        </form>
+                    }
+                </div>
+            </article>
+        }
+    </div>
+</section>
