@@ -1,0 +1,101 @@
+@page
+@model PresentationLayer.Pages.Admin.UsersModel
+@{
+    ViewData["Title"] = "User management";
+}
+
+<section class="admin-page">
+    <div class="admin-hero">
+        <div>
+            <p class="eyebrow">Administration</p>
+            <h1>User management</h1>
+            <p>Manage platform roles and create demo-ready school accounts. Subscription limits stay at organization level.</p>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] is string success)
+    {
+        <div class="app-alert success">@success</div>
+    }
+    @if (TempData["ErrorMessage"] is string error)
+    {
+        <div class="app-alert danger-alert">@error</div>
+    }
+
+    <section class="admin-panel">
+        <div class="panel-title">
+            <div>
+                <h2>Create account</h2>
+                <p>Use role separation for admin, lecturer, and student demo flows.</p>
+            </div>
+        </div>
+        <form method="post" asp-page-handler="Create" class="admin-form-grid">
+            <label>
+                <span>Email</span>
+                <input name="Email" type="email" required placeholder="user@school.edu" />
+            </label>
+            <label>
+                <span>Full name</span>
+                <input name="FullName" type="text" placeholder="Full name" />
+            </label>
+            <label>
+                <span>Password</span>
+                <input name="Password" type="password" required placeholder="At least 8 chars" />
+            </label>
+            <label>
+                <span>Role</span>
+                <select name="Role">
+                    @foreach (var role in Model.Data.Roles)
+                    {
+                        <option value="@role">@role</option>
+                    }
+                </select>
+            </label>
+            <button class="primary" type="submit">Create</button>
+        </form>
+    </section>
+
+    <section class="admin-panel">
+        <div class="panel-title">
+            <div>
+                <h2>Accounts</h2>
+                <p>@Model.Data.Users.Count user accounts in this workspace.</p>
+            </div>
+        </div>
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>Name</th>
+                        <th>Platform role</th>
+                        <th>Organization role</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in Model.Data.Users)
+                    {
+                        <tr>
+                            <form method="post">
+                                <input type="hidden" name="UserId" value="@user.UserId" />
+                                <td><strong>@user.Email</strong></td>
+                                <td>@user.FullName</td>
+                                <td>
+                                    <select name="Role">
+                                        @foreach (var role in Model.Data.Roles)
+                                        {
+                                            <option value="@role" selected="@(role == user.Role)">@role</option>
+                                        }
+                                    </select>
+                                </td>
+                                <td><span class="role-chip">@user.OrganizationRole</span></td>
+                                <td><button class="secondary" type="submit">Save</button></td>
+                            </form>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+</section>
