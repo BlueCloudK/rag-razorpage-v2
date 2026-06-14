@@ -1,0 +1,2913 @@
+﻿@page
+@model EduChatbot.RazorPages.Pages.Chat.IndexModel
+
+@{
+    Layout = null;
+    var subjectName = Model.CurrentSubject?.Name ?? "Chat";
+    var subjectCode = Model.CurrentSubject?.Code ?? "";
+    var subjectId = Model.CurrentSubject?.Id ?? 0;
+    var docCount = Model.Documents?.Count() ?? 0;
+    var indexedCount = Model.Documents?.Count(d => d.IsIndexed) ?? 0;
+    var processingCount = Model.Documents?.Count(d => !d.IsIndexed && d.IndexStatus != "Failed") ?? 0;
+    var messageCount = Model.CurrentSession.Messages?.Count() ?? 0;
+    var activeSessionId = Model.ActiveSessionId != 0 ? Model.ActiveSessionId : Model.CurrentSession?.Id ?? 0;
+    var activeTab = Model.ActiveTab;
+    var currentUserIsAdmin = User.IsInRole(ServiceLayer.Services.AuthConstants.Admin);
+    var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+    var lecturerRole = ServiceLayer.Services.AuthConstants.Lecturer;
+    var studentRole = ServiceLayer.Services.AuthConstants.Student;
+    var subjectLeadRole = ServiceLayer.Services.AuthConstants.SubjectLead;
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@subjectName - EduChatbot</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #0f0f11; color: #e8eaed; overflow: hidden; margin: 0; }
+        
+        .app { display: flex; height: 100vh; }
+        
+        /* === SIDEBAR === */
+        .sidebar { width: 320px; min-width: 320px; background: #0f0f11; display: flex; flex-direction: column; border-right: 1px solid #1e1e22; }
+        
+        .sb-header { padding: 16px 20px; border-bottom: 1px solid #1e1e22; display: flex; align-items: center; gap: 12px; }
+        .sb-back { width: 34px; height: 34px; border-radius: 8px; background: #1a1a1e; border: 1px solid #2a2a2e; display: flex; align-items: center; justify-content: center; color: #9aa0a6; text-decoration: none; transition: 0.2s; font-size: 0.9rem; }
+        .sb-back:hover { background: #2a2a2e; color: #e8eaed; }
+        .sb-title { font-weight: 600; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sb-code { font-size: 0.75rem; color: #667eea; font-weight: 500; }
+        .subject-nav { border-bottom: 1px solid #1e1e22; padding: 12px 14px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+        .workspace-tab { color: #9aa0a6; text-decoration: none; border: 1px solid #2a2a2e; background: #1a1a1e; border-radius: 8px; padding: 8px 10px; font-size: 0.76rem; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s; }
+        .workspace-tab:hover { color: #ffffff; border-color: #667eea; background: rgba(102,126,234,0.12); }
+        .workspace-tab.active { color: #ffffff; background: #24315a; border-color: #3c4f91; }
+        
+        .sb-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+        .workspace-summary { border-bottom: 1px solid #1e1e22; color: #9aa0a6; display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 16px; padding: 0 2px 14px; font-size: 0.73rem; line-height: 1.4; }
+        .workspace-summary strong { color: #d4d4d8; font-weight: 600; }
+        .workspace-summary .dot { color: #3a3a3e; }
+        .workspace-summary .processing { color: #fde293; }
+        
+        /* Section Title */
+        .sec-title { font-size: 0.75rem; font-weight: 600; color: #9aa0a6; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+        .history-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+        .history-new { border: 1px solid #2a2a2e; background: #1a1a1e; color: #d4d4d8; border-radius: 8px; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .history-new:hover { border-color: #667eea; color: #ffffff; background: rgba(102,126,234,0.12); }
+        .history-list { display: grid; gap: 8px; }
+        .history-section { border-top: 1px solid #1e1e22; margin-top: 18px; padding-top: 16px; }
+        .history-item { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: start; background: #1a1a1e; border: 1px solid #2a2a2e; border-radius: 10px; padding: 10px; color: #d4d4d8; text-decoration: none; }
+        .history-item:hover { border-color: #3a3a3e; color: #ffffff; }
+        .history-item.active { border-color: #667eea; background: rgba(102,126,234,0.1); }
+        .history-item a { color: inherit; }
+        .history-title { font-size: 0.82rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .history-meta { font-size: 0.68rem; color: #9aa0a6; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .history-delete { border: 0; background: transparent; color: #5f6368; padding: 2px 4px; border-radius: 6px; line-height: 1; }
+        .history-delete:hover { color: #ea4335; background: rgba(234,67,53,0.1); }
+        
+        /* Upload */
+        .upload-area { margin-bottom: 16px; }
+        .upload-btn { width: 100%; border: 1px dashed #2a2a2e; border-radius: 12px; padding: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; background: transparent; color: #667eea; font-weight: 500; font-size: 0.9rem; transition: 0.2s; }
+        .upload-btn:hover { background: rgba(102,126,234,0.05); border-color: #667eea; }
+        .chunk-config-modal { position: fixed; inset: 0; z-index: 95; display: none; align-items: center; justify-content: center; padding: 18px; background: rgba(0,0,0,.7); }
+        .chunk-config-modal.show { display: flex; }
+        .chunk-config-dialog { width: min(680px, 96vw); max-height: 90vh; overflow: auto; border: 1px solid #303544; border-radius: 12px; background: #15161a; box-shadow: 0 24px 80px rgba(0,0,0,.52); }
+        .chunk-config-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 18px 20px; border-bottom: 1px solid #2a2a2e; }
+        .chunk-config-title { margin: 0; color: #f4f6fb; font-size: 1rem; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+        .chunk-config-copy { margin: 5px 0 0; color: #9aa0a6; font-size: .76rem; line-height: 1.45; }
+        .chunk-config-close { border: 0; background: transparent; color: #9aa0a6; font-size: 1.2rem; cursor: pointer; }
+        .chunk-config-close:hover { color: #fff; }
+        .chunk-config-body { padding: 18px 20px; }
+        .chunk-profile-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+        .chunk-profile { min-height: 132px; text-align: left; border: 1px solid #2b3040; border-radius: 10px; background: #111216; color: #cdd3df; padding: 12px; cursor: pointer; transition: .18s; }
+        .chunk-profile:hover { border-color: #4b60bd; background: #151b2d; }
+        .chunk-profile.active { border-color: #667eea; background: #1b2444; box-shadow: inset 3px 0 0 #667eea; }
+        .chunk-profile strong { color: #f5f7fb; display: block; font-size: .82rem; margin-bottom: 5px; }
+        .chunk-profile small { color: #9aa0a6; font-size: .68rem; line-height: 1.4; display: block; }
+        .chunk-profile .profile-metric { color: #aebaff; font-size: .68rem; font-weight: 700; margin-top: 9px; }
+        .chunk-custom-panel { display: none; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; padding: 13px; border: 1px solid #34406a; border-radius: 10px; background: #111725; }
+        .chunk-custom-panel.show { display: grid; }
+        .chunk-custom-panel label { display: grid; gap: 6px; color: #cdd3df; font-size: .72rem; font-weight: 700; }
+        .chunk-custom-panel input { width: 100%; border: 1px solid #333a4a; border-radius: 7px; background: #0f1014; color: #f1f3f4; padding: 8px 9px; font-size: .8rem; }
+        .chunk-config-note { margin: 15px 0 0; color: #aeb6c5; font-size: .71rem; line-height: 1.45; }
+        .chunk-config-actions { display: flex; justify-content: flex-end; gap: 9px; padding: 15px 20px; border-top: 1px solid #2a2a2e; }
+        .chunk-config-actions button { border-radius: 8px; padding: 8px 12px; font-size: .78rem; font-weight: 700; cursor: pointer; }
+        .chunk-config-cancel { border: 1px solid #303440; background: #1a1b20; color: #cdd3df; }
+        .chunk-config-confirm { border: 1px solid #5b70d7; background: #4e61c2; color: #fff; }
+        .chunk-config-confirm:hover { background: #5b70d7; }
+        @@media (max-width: 560px) { .chunk-profile-grid { grid-template-columns: 1fr; } .chunk-custom-panel { grid-template-columns: 1fr; } }
+        .upload-progress { display: none; background: #1a1a1e; border: 1px solid #2a2a2e; border-radius: 10px; padding: 12px; margin-top: 10px; }
+        .upload-progress.show { display: none; }
+        .progress-head { display: flex; justify-content: space-between; gap: 8px; font-size: 0.75rem; color: #d4d4d8; margin-bottom: 8px; }
+        .progress-file { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .progress-percent { color: #81c995; font-weight: 600; }
+        .progress-track { height: 7px; background: #0f0f11; border-radius: 999px; overflow: hidden; }
+        .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #667eea, #81c995); border-radius: 999px; transition: width 0.25s ease; }
+        .progress-note { margin-top: 8px; font-size: 0.7rem; color: #9aa0a6; line-height: 1.4; }
+        
+        /* Source Card */
+        .src-card { background: #1a1a1e; border: 1px solid #2a2a2e; border-radius: 10px; padding: 12px; margin-bottom: 8px; display: flex; align-items: flex-start; gap: 10px; transition: 0.2s; }
+        .src-card.uploading { border-style: dashed; border-color: #3b4568; background: #171820; }
+        .src-card:hover { border-color: #3a3a3e; }
+        .src-icon { font-size: 1.5rem; flex-shrink: 0; }
+        .src-icon-pdf { color: #ea4335; }
+        .src-icon-doc { color: #4285f4; }
+        .src-icon-ppt { color: #fbbc04; }
+        .src-name { font-size: 0.85rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .src-detail { font-size: 0.7rem; color: #9aa0a6; margin-top: 3px; }
+        .badge-ok { background: #1b3a2a; color: #81c995; font-size: 0.65rem; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; }
+        .badge-wait { background: #3a2e1b; color: #fde293; font-size: 0.65rem; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; }
+        .badge-fail { background: #3a1b1b; color: #f28b82; font-size: 0.65rem; padding: 2px 8px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; }
+        .index-progress { margin-top: 8px; }
+        .index-progress-head { display: flex; justify-content: space-between; gap: 8px; color: #d4d4d8; font-size: .66rem; font-weight: 700; margin-bottom: 5px; }
+        .index-progress-stage { color: #fde293; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .index-progress-percent { color: #81c995; flex: 0 0 auto; }
+        .index-progress-track { height: 7px; border-radius: 999px; overflow: hidden; background: #101116; border: 1px solid #2a2517; }
+        .index-progress-fill { width: 8%; min-width: 8%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #667eea, #81c995); transition: width .28s ease; opacity: 1; }
+        .index-progress-fill.indeterminate { width: 12%; min-width: 12%; background: linear-gradient(90deg, #5a4521 0%, #fde293 45%, #5a4521 90%); background-size: 220% 100%; animation: index-slide 1.1s linear infinite; opacity: .95; }
+        .index-progress-note { margin-top: 5px; color: #bca769; font-size: .66rem; line-height: 1.35; }
+        @@keyframes index-slide {
+            0% { background-position: 180% 0; }
+            100% { background-position: -40% 0; }
+        }
+        .chunk-pill { color: #9aa0a6; font-size: 0.68rem; margin-left: 4px; }
+        .del-btn { background: none; border: none; color: #5f6368; padding: 4px; border-radius: 6px; transition: 0.2s; cursor: pointer; }
+        .del-btn:hover { color: #ea4335; background: rgba(234,67,53,0.1); }
+        .inspect-btn { background: none; border: none; color: #8ea0ff; padding: 4px; border-radius: 6px; transition: 0.2s; cursor: pointer; }
+        .inspect-btn:hover { color: #ffffff; background: rgba(102,126,234,0.16); }
+        .src-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+        .inspect-modal { position: fixed; inset: 0; display: none; place-items: center; background: rgba(0,0,0,0.72); z-index: 50; padding: 18px; }
+        .inspect-modal.show { display: grid; }
+        .inspect-dialog { width: min(1040px, 96vw); max-height: 90vh; overflow: hidden; border: 1px solid #2d2f38; border-radius: 12px; background: #15161a; box-shadow: 0 24px 80px rgba(0,0,0,0.45); }
+        .inspect-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 18px 20px; border-bottom: 1px solid #2a2a2e; }
+        .inspect-title { margin: 0; font-size: 1.05rem; font-weight: 800; color: #f5f7fb; display: flex; align-items: center; gap: 8px; }
+        .inspect-subtitle { margin-top: 4px; color: #9aa0a6; font-size: .8rem; }
+        .inspect-close { border: 0; background: transparent; color: #a4a9b6; font-size: 1.35rem; cursor: pointer; }
+        .inspect-body { padding: 16px 18px 20px; overflow-y: auto; max-height: calc(90vh - 82px); }
+        .inspect-overview { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+        .inspect-stat { min-width: 0; border: 1px solid #2a3040; border-radius: 10px; background: #11151f; padding: 11px 12px; }
+        .inspect-stat span { display: block; color: #8f96a7; font-size: .62rem; text-transform: uppercase; letter-spacing: .06em; font-weight: 800; margin-bottom: 5px; }
+        .inspect-stat strong { display: block; color: #f4f6fb; font-size: .82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .inspect-stat.success { border-color: #28543d; background: #111b16; }
+        .inspect-stat.success strong { color: #9bdfab; }
+        .inspect-flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; border: 1px solid #292d36; border-radius: 10px; background: #111216; padding: 11px; margin-bottom: 14px; }
+        .inspect-flow-step { min-width: 0; position: relative; padding: 8px 8px 8px 28px; border-left: 2px solid #516bd2; }
+        .inspect-flow-step::before { content: attr(data-step); position: absolute; left: 8px; top: 8px; color: #8ea2ff; font-size: .61rem; font-weight: 900; }
+        .inspect-flow-step strong { display: block; color: #e8ebf5; font-size: .72rem; margin-bottom: 3px; }
+        .inspect-flow-step span { display: block; color: #9aa0a6; font-size: .64rem; line-height: 1.35; }
+        .inspect-grid { display: grid; grid-template-columns: minmax(250px, .8fr) minmax(460px, 1.45fr); gap: 14px; align-items: start; }
+        .inspect-panel { border: 1px solid #2a2a2e; border-radius: 10px; background: #111216; padding: 14px; }
+        .inspect-panel h4 { margin: 0 0 12px; color: #f1f3f4; font-size: .9rem; font-weight: 800; }
+        .inspect-kv { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 8px 12px; color: #cdd3df; font-size: .78rem; }
+        .inspect-kv span:first-child { color: #8f96a7; }
+        .chunking-decision { margin-bottom: 14px; border-color: #314066; background: #141927; }
+        .chunking-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+        .chunking-selected { display: inline-flex; align-items: center; gap: 7px; border: 1px solid #3f55a7; background: #1d274a; color: #dce4ff; border-radius: 999px; padding: 6px 10px; font-size: .72rem; font-weight: 800; white-space: nowrap; }
+        .chunking-reason { margin: 4px 0 0; color: #aeb6c5; font-size: .76rem; line-height: 1.45; }
+        .chunking-decision summary { cursor: pointer; list-style: none; }
+        .chunking-decision summary::-webkit-details-marker { display: none; }
+        .chunking-decision summary .chunking-header { margin: 0; }
+        .chunking-decision[open] summary .chunking-header { margin-bottom: 12px; }
+        .chunking-table { display: grid; gap: 8px; }
+        .chunking-row { display: grid; grid-template-columns: minmax(135px, .9fr) 72px repeat(4, 64px) minmax(220px, 1.6fr); gap: 8px; align-items: center; padding: 9px 10px; border: 1px solid #2b3144; border-radius: 9px; background: #11151f; color: #cdd3df; font-size: .72rem; }
+        .chunking-row.header { color: #8f9cff; background: transparent; border: 0; padding-top: 0; padding-bottom: 0; font-size: .62rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+        .chunking-row.selected { border-color: #4f67d8; background: #171f3a; box-shadow: inset 3px 0 0 #667eea; }
+        .chunking-row strong { color: #f1f3f4; }
+        .metric-bar { height: 6px; border-radius: 999px; background: #282d3a; overflow: hidden; margin-top: 4px; }
+        .metric-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #5f7cff, #33d69f); }
+        .storage-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .storage-card { margin-top: 10px; padding: 12px; border: 1px solid #292d36; border-radius: 9px; background: #171920; color: #aeb6c5; font-size: .76rem; line-height: 1.5; }
+        .storage-card strong { color: #e8ebf2; display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+        .chunk-list { display: grid; gap: 9px; }
+        .chunk-card { border: 1px solid #2a2a2e; border-radius: 10px; background: #101116; overflow: hidden; }
+        .chunk-card summary { list-style: none; cursor: pointer; padding: 12px 13px; }
+        .chunk-card summary::-webkit-details-marker { display: none; }
+        .chunk-card summary:hover { background: #151820; }
+        .chunk-head { display: flex; justify-content: space-between; gap: 10px; color: #aab2ff; font-size: .76rem; font-weight: 800; }
+        .chunk-head i { color: #737eab; margin-right: 7px; }
+        .chunk-meta-line { margin-top: 5px; color: #8f96a7; font-size: .66rem; font-weight: 500; line-height: 1.4; }
+        .chunk-card-body { border-top: 1px solid #272a33; padding: 12px 13px 13px; }
+        .chunk-content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+        .chunk-content-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #b6c1ec; font-size: .67rem; font-weight: 800; margin-bottom: 6px; }
+        .chunk-content-label span { color: #81899e; font-size: .61rem; font-weight: 700; }
+        .chunk-context { color: #aeb7cf; font-size: .72rem; line-height: 1.5; background: #141824; border: 1px solid #26314a; border-radius: 8px; padding: 9px; min-height: 110px; white-space: pre-wrap; }
+        .chunk-context strong { color: #dce4ff; }
+        .chunk-text { color: #d8dde7; font-size: .76rem; line-height: 1.52; max-height: 180px; overflow: auto; white-space: pre-wrap; background: #121318; border: 1px solid #292d36; border-radius: 8px; padding: 9px; min-height: 110px; }
+        .vector-preview { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 5px; }
+        .vector-pill { border: 1px solid #35405f; border-radius: 999px; padding: 3px 7px; color: #b7c0ff; background: #1d2233; font-size: .68rem; }
+        @@media (max-width: 860px) {
+            .inspect-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .inspect-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .inspect-grid, .storage-grid, .chunk-content-grid { grid-template-columns: 1fr; }
+            .chunking-row { grid-template-columns: 1fr 62px 62px; }
+            .chunking-row.header { display: none; }
+            .chunking-row > :nth-child(n+4):nth-child(-n+6) { display: none; }
+            .chunking-row > span:last-child { grid-column: 1 / -1; }
+        }
+        
+        /* Empty state */
+        .empty-hint { text-align: center; padding: 20px 10px; color: #9aa0a6; font-size: 0.85rem; line-height: 1.6; }
+        .empty-hint i { font-size: 2rem; color: #667eea40; margin-bottom: 10px; display: block; }
+        
+        /* === MAIN CHAT === */
+        .main { flex: 1; min-width: 0; display: flex; flex-direction: column; background: #141416; border-left: 1px solid #1e1e22; }
+        .circuit-panel { width: 430px; min-width: 430px; background: #101114; border-left: 1px solid #1e1e22; display: flex; flex-direction: column; }
+        .circuit-head { padding: 14px 16px; border-bottom: 1px solid #1e1e22; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .circuit-title { font-weight: 800; color: #f5f7fb; font-size: .9rem; display: flex; align-items: center; gap: 8px; }
+        .circuit-actions { display: flex; align-items: center; gap: 8px; }
+        .circuit-state { font-size: .68rem; color: #8f96a7; border: 1px solid #2a2a2e; border-radius: 999px; padding: 4px 8px; background: #17181d; white-space: nowrap; }
+        .circuit-expand { border: 1px solid #2a2a2e; background: #17181d; color: #c9d1e4; border-radius: 8px; padding: 5px 8px; font-size: .68rem; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+        .circuit-expand:hover { border-color: #667eea; color: #ffffff; }
+        .circuit-body { padding: 14px; overflow-y: auto; }
+        .circuit-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 13px; }
+        .circuit-summary-card { border: 1px solid #262a35; background: #15161b; border-radius: 10px; padding: 9px; min-width: 0; }
+        .circuit-summary-card span { display: block; color: #8f96a7; font-size: .62rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 800; margin-bottom: 4px; }
+        .circuit-summary-card strong { display: block; color: #f3f6ff; font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .circuit-board { position: relative; display: grid; gap: 12px; padding-left: 18px; }
+        .circuit-board::before { content: ""; position: absolute; left: 7px; top: 12px; bottom: 14px; width: 2px; background: linear-gradient(180deg, #28543d, #3c4f91 42%, #2a2d38 70%, #28543d); box-shadow: 0 0 18px rgba(102,126,234,.18); }
+        .circuit-phase { position: relative; display: flex; align-items: center; gap: 8px; color: #aeb7cf; font-size: .66rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 900; margin-top: 2px; }
+        .circuit-phase::before { content: ""; position: absolute; left: -14px; top: 50%; width: 8px; height: 8px; transform: translateY(-50%); border-radius: 999px; background: #667eea; box-shadow: 0 0 14px rgba(102,126,234,.55); }
+        .circuit-phase span { border: 1px solid #2a2f42; border-radius: 999px; padding: 4px 7px; background: #141824; color: #dce2ff; }
+        .circuit-row { display: grid; gap: 10px; position: relative; }
+        .circuit-row.top { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .circuit-row.branches { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .circuit-row.merge { grid-template-columns: minmax(0, .95fr) minmax(0, 1.55fr); }
+        .circuit-row.final { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+        .circuit-row::before { content: ""; position: absolute; left: -17px; top: 50%; width: 17px; height: 2px; background: #2e3c6d; opacity: .75; }
+        .circuit-row.branches::after { content: ""; position: absolute; left: 16%; right: 16%; bottom: -9px; height: 18px; border-left: 1px solid #2e3c6d; border-right: 1px solid #2e3c6d; border-bottom: 1px solid #2e3c6d; border-radius: 0 0 12px 12px; opacity: .65; pointer-events: none; }
+        .circuit-lane-note { border: 1px solid #24314a; border-radius: 10px; background: #101722; color: #aeb7cf; font-size: .68rem; padding: 8px 10px; display: flex; align-items: center; gap: 8px; }
+        .circuit-lane-note i { color: #8ea2ff; }
+        .circuit-node { position: relative; min-width: 0; }
+        .circuit-node::before { content: ""; position: absolute; left: -22px; top: 19px; width: 8px; height: 8px; border-radius: 999px; background: #2a2d38; border: 1px solid #4a536a; z-index: 2; }
+        .circuit-card { position: relative; border: 1px solid #252833; background: #15161a; border-radius: 10px; padding: 10px; min-height: 82px; overflow: hidden; }
+        .circuit-card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: #2b3040; }
+        .circuit-icon { width: 26px; height: 26px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #191b22; border: 1px solid #2a2d38; color: #737b91; margin-bottom: 8px; }
+        .circuit-card h4 { margin: 0 0 5px; color: #e8eaed; font-size: .74rem; font-weight: 800; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .circuit-row.branches .circuit-card h4 { align-items: flex-start; flex-direction: column; gap: 4px; }
+        .circuit-copy { margin: 0; color: #9aa0a6; font-size: .68rem; line-height: 1.42; }
+        .circuit-node.branch .circuit-card { background: #121722; border-color: #26314a; }
+        .circuit-wire { height: 12px; position: relative; }
+        .circuit-wire::before { content: ""; position: absolute; left: 10%; right: 10%; top: 5px; height: 2px; background: linear-gradient(90deg, transparent, #2e3c6d, transparent); }
+        .circuit-node.running .circuit-card { border-color: #3c4f91; box-shadow: 0 0 0 1px rgba(102,126,234,.12); }
+        .circuit-node.running .circuit-card::before { background: #667eea; box-shadow: 0 0 14px rgba(102,126,234,.65); }
+        .circuit-node.running::before { background: #667eea; box-shadow: 0 0 14px rgba(102,126,234,.75); }
+        .circuit-node.running .circuit-icon { color: #ffffff; border-color: #667eea; background: #26315d; }
+        .circuit-node.done .circuit-card { border-color: #28543d; }
+        .circuit-node.done .circuit-card::before { background: #81c995; }
+        .circuit-node.done::before { background: #81c995; border-color: #28543d; box-shadow: 0 0 12px rgba(129,201,149,.42); }
+        .circuit-node.done .circuit-icon { color: #81c995; border-color: #28543d; background: #1b3a2a; }
+        .circuit-node.blocked .circuit-card, .circuit-node.error .circuit-card { border-color: #5a2828; }
+        .circuit-node.blocked .circuit-card::before, .circuit-node.error .circuit-card::before { background: #f28b82; }
+        .circuit-node.blocked::before, .circuit-node.error::before { background: #f28b82; border-color: #5a2828; }
+        .circuit-node.blocked .circuit-icon, .circuit-node.error .circuit-icon { color: #f28b82; border-color: #5a2828; background: #3a1b1b; }
+        .trace-line { display: block; margin-top: 4px; overflow-wrap: anywhere; }
+        .trace-line:first-child { margin-top: 0; }
+        .trace-line strong { color: #cbd3e6; font-weight: 800; margin-right: 4px; }
+        .circuit-chip { color: #aab2ff; font-size: .6rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 800; flex: 0 0 auto; }
+        .circuit-kpi { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+        .circuit-kpi span { border: 1px solid #2a2f42; border-radius: 999px; padding: 3px 6px; color: #b6bed4; font-size: .62rem; background: #10131a; }
+        .circuit-detail { display: none; margin-top: 8px; border-top: 1px solid #242832; padding-top: 8px; }
+        .circuit-modal .circuit-detail { display: block; }
+        .circuit-panel .evidence-mini .evidence-item:nth-child(n+2) { display: none; }
+        .evidence-mini { display: grid; gap: 6px; margin-top: 8px; }
+        .evidence-item { border: 1px solid #2a2a2e; border-radius: 8px; padding: 7px; background: #101116; }
+        .evidence-item strong { color: #dce2f4; font-size: .68rem; display: block; margin-bottom: 3px; }
+        .evidence-item span { color: #9aa0a6; font-size: .66rem; line-height: 1.35; display: block; }
+        .circuit-panel.expanded .evidence-item span { font-size: .68rem; }
+        .circuit-modal { position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,.72); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; padding: 22px; }
+        .circuit-modal.show { display: flex; }
+        .circuit-dialog { width: min(1120px, 96vw); max-height: 90vh; overflow: hidden; border: 1px solid #303544; border-radius: 14px; background: #111216; box-shadow: 0 24px 80px rgba(0,0,0,.52); display: flex; flex-direction: column; }
+        .circuit-dialog-head { padding: 16px 18px; border-bottom: 1px solid #242832; display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+        .circuit-dialog-title { margin: 0; color: #f5f7fb; font-size: 1rem; font-weight: 900; display: flex; align-items: center; gap: 9px; }
+        .circuit-dialog-subtitle { color: #9aa0a6; font-size: .76rem; margin-top: 5px; }
+        .circuit-dialog-close { border: 0; background: transparent; color: #9aa0a6; font-size: 1.25rem; cursor: pointer; }
+        .circuit-dialog-close:hover { color: #fff; }
+        .circuit-dialog-body { overflow: auto; padding: 18px; }
+        .trace-dashboard { display: grid; gap: 14px; }
+        .trace-map-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid #252833; border-radius: 12px; background: linear-gradient(135deg, #151823, #111216); padding: 12px 14px; }
+        .trace-map-title h4 { margin: 0; color: #f5f7fb; font-size: .92rem; display: flex; align-items: center; gap: 8px; }
+        .trace-map-title p { margin: 4px 0 0; color: #9aa0a6; font-size: .72rem; }
+        .trace-legend { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px; border: 1px solid #252833; border-radius: 12px; background: #15161a; }
+        .trace-legend span { display: inline-flex; align-items: center; gap: 6px; color: #aeb6c9; font-size: .7rem; border: 1px solid #2a2f42; border-radius: 999px; padding: 5px 8px; background: #101218; }
+        .trace-legend i { width: 8px; height: 8px; border-radius: 999px; display: inline-block; }
+        .trace-legend .ok { background: #81c995; }
+        .trace-legend .run { background: #667eea; }
+        .trace-legend .skip { background: #f28b82; }
+        .trace-mini-flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; }
+        .trace-mini-step { position: relative; border: 1px solid #293044; border-radius: 11px; background: #101218; padding: 10px; min-height: 78px; }
+        .trace-mini-step:not(:last-child)::after { content: ""; position: absolute; right: -8px; top: 50%; width: 8px; height: 2px; background: #3c4f91; box-shadow: 0 0 12px rgba(102,126,234,.35); }
+        .trace-mini-step strong { display: block; color: #f3f6ff; font-size: .72rem; margin-bottom: 4px; }
+        .trace-mini-step span { display: block; color: #9aa0a6; font-size: .66rem; line-height: 1.35; }
+        .trace-section-label { color: #8ea2ff; font-size: .7rem; text-transform: uppercase; letter-spacing: .09em; font-weight: 900; margin: 4px 0 -4px; }
+        .trace-flow { position: relative; display: grid; gap: 12px; padding-left: 30px; }
+        .trace-flow::before { content: ""; position: absolute; left: 12px; top: 18px; bottom: 18px; width: 2px; background: linear-gradient(180deg, #81c995, #667eea 40%, #667eea 62%, #81c995); box-shadow: 0 0 18px rgba(102,126,234,.28); }
+        .trace-stage { position: relative; border: 1px solid #252833; background: #15161a; border-radius: 12px; padding: 13px; }
+        .trace-stage::before { content: attr(data-step); position: absolute; left: -39px; top: 15px; width: 24px; height: 24px; border-radius: 9px; display: flex; align-items: center; justify-content: center; color: #f4f7ff; font-size: .66rem; font-weight: 900; background: #26315d; border: 1px solid #667eea; box-shadow: 0 0 14px rgba(102,126,234,.35); }
+        .trace-stage-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+        .trace-stage-title { color: #f5f7fb; font-size: .86rem; font-weight: 900; display: flex; align-items: center; gap: 8px; }
+        .trace-stage-title small { display: block; color: #8f96a7; font-size: .68rem; font-weight: 600; margin-top: 3px; }
+        .trace-stage-status { flex: 0 0 auto; border: 1px solid #28543d; border-radius: 999px; padding: 4px 8px; color: #81c995; background: #102018; font-size: .62rem; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; }
+        .trace-stage-status.skip { border-color: #5a2828; color: #f28b82; background: #2a1719; }
+        .trace-panel { border: 1px solid #252833; background: #15161a; border-radius: 12px; padding: 14px; }
+        .trace-panel h4 { margin: 0 0 10px; font-size: .84rem; color: #f5f7fb; display: flex; align-items: center; gap: 7px; }
+        .trace-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+        .trace-metric { border: 1px solid #282d3b; border-radius: 10px; padding: 9px; background: #101218; }
+        .trace-metric span { display: block; color: #8f96a7; font-size: .64rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 800; margin-bottom: 4px; }
+        .trace-metric strong { color: #f3f6ff; font-size: .85rem; overflow-wrap: anywhere; }
+        .trace-loop { border: 1px solid #26314a; border-radius: 12px; padding: 12px; background: #111722; margin-bottom: 10px; position: relative; }
+        .trace-loop-head { display: flex; justify-content: space-between; gap: 10px; color: #dce2f4; font-weight: 900; font-size: .78rem; margin-bottom: 10px; }
+        .trace-loop-note { color: #8f96a7; font-size: .68rem; margin: -3px 0 10px; }
+        .trace-loop-path { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; margin-bottom: 10px; color: #aeb6c9; font-size: .66rem; }
+        .trace-loop-path span { border: 1px solid #27304b; border-radius: 999px; padding: 5px 8px; background: #10131a; text-align: center; }
+        .trace-loop-path i { color: #667eea; font-size: .85rem; }
+        .trace-branches { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .trace-branch { border: 1px solid #2a2f42; border-radius: 10px; padding: 9px; background: #10131a; min-width: 0; }
+        .trace-branch strong { display: flex; justify-content: space-between; gap: 8px; color: #f2f4ff; font-size: .72rem; margin-bottom: 6px; }
+        .trace-branch span { display: block; color: #9aa0a6; font-size: .66rem; line-height: 1.4; overflow-wrap: anywhere; }
+        .trace-merge-note { margin-top: 8px; border-top: 1px solid #27304b; padding-top: 8px; color: #b8c2dc; font-size: .68rem; display: flex; gap: 8px; flex-wrap: wrap; }
+        .trace-evidence-list { display: grid; gap: 8px; }
+        .trace-evidence-list .evidence-item span { font-size: .72rem; max-height: none; }
+        .trace-citation-check { display: grid; gap: 10px; }
+        .trace-citation-card { border: 1px solid #2a2f42; border-radius: 12px; background: #101218; padding: 11px; display: grid; gap: 5px; }
+        .trace-citation-card strong { color: #f3f6ff; display: flex; align-items: center; gap: 7px; font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; }
+        .trace-citation-card span { color: #aab2c8; font-size: .72rem; line-height: 1.45; }
+        .trace-citation-card.ok { border-color: #28543d; background: rgba(40, 180, 107, .08); }
+        .trace-citation-card.ok strong { color: #9ee7bf; }
+        .trace-citation-card.warn { border-color: #6c5427; background: rgba(201, 154, 36, .1); }
+        .trace-citation-card.warn strong { color: #f0ca63; }
+        .trace-citation-card.skip { border-color: #5a2828; background: rgba(242, 139, 130, .08); }
+        .trace-citation-card.skip strong { color: #ffb0aa; }
+        @@media (max-width: 1100px) { .trace-branches, .trace-metrics, .trace-mini-flow { grid-template-columns: 1fr; } .trace-mini-step:not(:last-child)::after { display: none; } }
+        .realtime-toast { position: fixed; right: 18px; bottom: 18px; z-index: 70; max-width: 360px; border: 1px solid #2c3d61; border-radius: 10px; background: #171b28; color: #e8ebf4; box-shadow: 0 18px 55px rgba(0,0,0,.38); padding: 12px 14px; display: none; align-items: flex-start; gap: 10px; font-size: .78rem; line-height: 1.45; }
+        .realtime-toast.show { display: flex; }
+        .realtime-toast i { color: #85d59d; margin-top: 1px; }
+        
+        .chat-topbar { padding: 12px 24px; border-bottom: 1px solid #1e1e22; display: flex; justify-content: space-between; align-items: center; }
+        .chat-topbar-title { font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; }
+        .chat-topbar-title i { color: #667eea; }
+        .scope-badge { font-size: 0.7rem; background: #1b3a2a; color: #81c995; padding: 4px 10px; border-radius: 8px; display: inline-flex; align-items: center; gap: 5px; }
+        .topbar-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+        .ai-status { font-size: 0.7rem; border: 1px solid #2a2a2e; background: #1a1a1e; color: #9aa0a6; padding: 4px 10px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px; }
+        .ai-status.ready { background: #1b3a2a; color: #81c995; border-color: #28543d; }
+        .ai-status.starting { background: #3a2e1b; color: #fde293; border-color: #5a4521; }
+        .ai-status.error { background: #3a1b1b; color: #f28b82; border-color: #5a2828; }
+        
+        .chat-area { flex: 1; overflow-y: auto; padding: 30px 10%; display: flex; flex-direction: column; scroll-behavior: smooth; }
+        .workspace-panel { flex: 1; overflow-y: auto; padding: 34px 8%; }
+        .workspace-panel h2 { font-size: 1.45rem; font-weight: 800; margin-bottom: 8px; color: #f5f7fb; }
+        .workspace-panel .panel-subtitle { color: #9aa0a6; margin-bottom: 22px; max-width: 760px; line-height: 1.55; }
+        .workspace-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+        .workspace-card { background: #1a1a1e; border: 1px solid #2a2a2e; border-radius: 12px; padding: 16px; }
+        .workspace-card-title { font-weight: 800; color: #f1f3f4; margin-bottom: 6px; word-break: break-word; }
+        .workspace-card-meta { color: #9aa0a6; font-size: 0.82rem; line-height: 1.5; }
+        .panel-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin-bottom: 18px; }
+        .panel-btn { border: 1px solid #303038; background: #1a1a1e; color: #d4d4d8; border-radius: 8px; padding: 8px 11px; text-decoration: none; display: inline-flex; align-items: center; gap: 7px; font-size: 0.82rem; cursor: pointer; }
+        .panel-btn:hover { color: #ffffff; border-color: #667eea; background: rgba(102,126,234,0.12); }
+        .panel-btn.primary { border-color: #3c4f91; background: #24315a; color: #ffffff; }
+        .panel-btn.danger { border-color: #5a2828; background: #2a1719; color: #f28b82; }
+        .panel-btn.danger:hover { border-color: #ea4335; background: #3a1b1b; color: #ffffff; }
+        .panel-form { display: grid; gap: 14px; max-width: 620px; }
+        .panel-label { color: #b9c0cd; font-size: 0.78rem; font-weight: 700; }
+        .panel-input { width: 100%; border: 1px solid #303038; background: #101014; color: #f1f3f4; border-radius: 8px; padding: 10px 12px; outline: none; }
+        .panel-input:focus { border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.12); }
+        .settings-row { display: grid; grid-template-columns: 170px 1fr; gap: 16px; padding: 12px 0; border-bottom: 1px solid #24242a; color: #b9c0cd; }
+        .settings-row strong { color: #f1f3f4; }
+        
+        /* Messages */
+        .msg-user { align-self: flex-end; background: #1e2a4a; border: 1px solid #2a3a5a; color: #e8eaed; padding: 14px 18px; border-radius: 16px 16px 4px 16px; margin-bottom: 24px; max-width: 75%; font-size: 0.95rem; line-height: 1.5; }
+        
+        .msg-bot { align-self: flex-start; margin-bottom: 24px; max-width: 90%; }
+        .bot-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .bot-avatar { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; }
+        .bot-label { font-size: 0.8rem; font-weight: 600; color: #667eea; }
+        .bot-content { font-size: 0.95rem; line-height: 1.7; color: #d4d4d8; }
+        .bot-content h3 { font-size: 1rem; color: #f1f3f4; margin: 14px 0 8px; font-weight: 700; }
+        .bot-content h3:first-child { margin-top: 0; }
+        .bot-content p { margin: 0 0 10px; }
+        .bot-content ul, .bot-content ol { margin: 8px 0 12px 1.15rem; padding: 0; }
+        .bot-content li { margin: 6px 0; padding-left: 2px; }
+        .bot-content strong { color: #ffffff; font-weight: 700; }
+        .bot-content .answer-lead { color: #f1f3f4; font-weight: 500; }
+        
+        /* Citations */
+        .sources-used { margin-top: 12px; border: 1px solid #2a2a2e; border-radius: 10px; background: #15161a; overflow: hidden; max-width: 720px; }
+        .sources-head { padding: 9px 11px; border-bottom: 1px solid #24262d; color: #dce2f4; font-size: .76rem; font-weight: 800; display: flex; align-items: center; gap: 7px; }
+        .sources-list { display: grid; gap: 0; }
+        .source-row { padding: 9px 11px; display: grid; gap: 4px; border-bottom: 1px solid #202228; }
+        .source-row:last-child { border-bottom: 0; }
+        .source-name { color: #f1f3f4; font-size: .76rem; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+        .source-meta { color: #9aa0a6; font-size: .68rem; line-height: 1.4; }
+        .source-preview { color: #aeb6c5; font-size: .7rem; line-height: 1.35; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        /* Welcome */
+        .welcome { text-align: center; margin: auto; max-width: 450px; }
+        .welcome-icon { width: 64px; height: 64px; border-radius: 16px; background: linear-gradient(135deg, #667eea20, #764ba220); border: 1px solid #667eea30; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; color: #667eea; margin: 0 auto 20px; }
+        .welcome h3 { font-weight: 600; margin-bottom: 8px; font-size: 1.3rem; }
+        .welcome p { color: #9aa0a6; font-size: 0.9rem; line-height: 1.6; }
+        .welcome-tips { margin-top: 24px; text-align: left; }
+        .tip { background: #1a1a1e; border: 1px solid #2a2a2e; border-radius: 10px; padding: 12px 16px; margin-bottom: 8px; font-size: 0.85rem; color: #9aa0a6; display: flex; align-items: center; gap: 10px; cursor: pointer; transition: 0.2s; }
+        .tip:hover { border-color: #667eea; color: #e8eaed; }
+        .tip i { color: #667eea; font-size: 1rem; }
+        
+        /* Input */
+        .input-area { padding: 16px 10% 24px; }
+        .input-box { background: #1a1a1e; border: 1px solid #2a2a2e; border-radius: 24px; padding: 6px 6px 6px 20px; display: flex; align-items: center; transition: 0.3s; }
+        .input-box:focus-within { border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.1); }
+        .input-box input { border: none; background: transparent; color: #e8eaed; flex: 1; outline: none; padding: 10px 0; font-size: 0.95rem; }
+        .input-box input::placeholder { color: #5f6368; }
+        .send-btn { width: 42px; height: 42px; border-radius: 50%; border: none; background: linear-gradient(135deg, #667eea, #764ba2); color: white; display: flex; align-items: center; justify-content: center; transition: 0.2s; flex-shrink: 0; cursor: pointer; }
+        .send-btn:hover { transform: scale(1.05); }
+        .send-btn.disabled { background: #2a2a2e; color: #5f6368; pointer-events: none; }
+        .send-btn.stop { background: #3a1b1b; color: #f28b82; border: 1px solid #5a2828; }
+        .send-btn.stop:hover { background: #4a2020; }
+        .input-hint { text-align: center; margin-top: 8px; font-size: 0.7rem; color: #5f6368; }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #2a2a2e; border-radius: 3px; }
+        @@media (max-width: 1180px) {
+            .circuit-panel { display: none; }
+            .chat-area, .input-area { padding-left: 7%; padding-right: 7%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <div class="sb-header">
+            <a href="/" class="sb-back" title="Back to dashboard"><i class="bi bi-arrow-left"></i></a>
+            <div>
+                <div class="sb-title">@subjectName</div>
+                <div class="sb-code">@subjectCode</div>
+            </div>
+        </div>
+        <nav class="subject-nav" aria-label="Subject workspace navigation">
+            <a class="workspace-tab @(activeTab == "chat" ? "active" : "")" asp-page="/Chat/Index" asp-route-subjectId="@subjectId" asp-route-sessionId="@activeSessionId" asp-route-tab="chat"><i class="bi bi-chat-dots"></i> Chat</a>
+            @if (Model.CanManageSubject)
+            {
+                <a class="workspace-tab @(activeTab == "members" ? "active" : "")" asp-page="/Chat/Index" asp-route-subjectId="@subjectId" asp-route-tab="members"><i class="bi bi-people"></i> Members</a>
+                <a class="workspace-tab @(activeTab == "settings" ? "active" : "")" asp-page="/Chat/Index" asp-route-subjectId="@subjectId" asp-route-tab="settings"><i class="bi bi-gear"></i> Settings</a>
+            }
+        </nav>
+        
+        <div class="sb-body">
+            @if (Model.CurrentSession != null)
+            {
+                <div class="workspace-summary" aria-label="Workspace summary">
+                    <span><strong>@indexedCount</strong>/<strong>@docCount</strong> documents indexed</span>
+                    @if (processingCount > 0)
+                    {
+                        <span class="dot">·</span>
+                        <span class="processing"><strong>@processingCount</strong> processing</span>
+                    }
+                    <span class="dot">·</span>
+                    <span><strong>@messageCount</strong> messages</span>
+                </div>
+
+                @if (activeTab == "chat")
+                {
+                    @if (Model.CanUploadDocuments)
+                    {
+                        <div class="sec-title"><i class="bi bi-cloud-arrow-up"></i> Upload documents</div>
+                        <div class="upload-area">
+                            <form method="post" enctype="multipart/form-data" id="uploadForm" asp-page-handler="Upload" asp-route-subjectId="@subjectId">
+                                <input type="hidden" name="subjectId" value="@subjectId" />
+                                <input type="hidden" name="sessionId" value="@activeSessionId" />
+                                <input type="hidden" name="chunkingProfile" id="chunkingProfile" value="balanced" />
+                                <input type="hidden" name="chunkSize" id="chunkSize" value="850" />
+                                <input type="hidden" name="chunkOverlap" id="chunkOverlap" value="120" />
+                                <button type="button" class="upload-btn" id="openChunkConfig"><i class="bi bi-plus-lg"></i> Add source (PDF, DOCX, PPTX)</button>
+                                <input type="file" name="file" id="uploadFile" class="d-none" accept=".pdf,.docx,.pptx" />
+                            </form>
+                        </div>
+                    }
+                 
+                    <!-- Document List -->
+                    <div class="sec-title" id="documentList"><i class="bi bi-files"></i> Indexed documents</div>
+                 
+                    @if (Model.Documents != null && Model.Documents.Any())
+                    {
+                        foreach (var doc in Model.Documents)
+                        {
+                            var ext = System.IO.Path.GetExtension(doc.FileName).ToLower();
+                            var iconClass = ext == ".pdf" ? "bi-filetype-pdf src-icon-pdf"
+                                : ext == ".docx" ? "bi-filetype-docx src-icon-doc"
+                                : "bi-filetype-pptx src-icon-ppt";
+
+                            <div class="src-card" data-document-card="@doc.Id" @(!doc.IsIndexed && doc.IndexStatus != "Failed" ? $"data-indexing-document-id=\"{doc.Id}\"" : "")>
+                                <i class="bi @iconClass src-icon"></i>
+                                <div class="flex-grow-1 overflow-hidden">
+                                    <div class="src-name" title="@doc.FileName">@doc.FileName</div>
+                                    <div class="src-detail">
+                                        Uploaded: @doc.UploadedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                    </div>
+                                    <div class="mt-1">
+                                        @if (doc.IsIndexed)
+                                        {
+                                            <span class="badge-ok"><i class="bi bi-check-circle-fill"></i> Chunked & embedded</span>
+                                            <span class="chunk-pill">@doc.ChunkCount chunks</span>
+                                            <span class="chunk-pill" title="Chunk size / overlap">@doc.ChunkingProfile · @doc.ChunkSize/@doc.ChunkOverlap</span>
+                                        }
+                                        else if (doc.IndexStatus == "Failed")
+                                        {
+                                            <span class="badge-fail" title="@doc.IndexMessage"><i class="bi bi-exclamation-triangle-fill"></i> Index failed</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge-wait" data-index-badge="@doc.Id"><span class="spinner-border spinner-border-sm"></span> Indexing</span>
+                                            <div class="index-progress" aria-label="Document indexing in progress">
+                                                <div class="index-progress-head">
+                                                    <span class="index-progress-stage" data-index-stage="@doc.Id">Waiting for AI progress</span>
+                                                    <span class="index-progress-percent" data-index-percent="@doc.Id">35%</span>
+                                                </div>
+                                                <div class="index-progress-track"><div class="index-progress-fill" data-index-fill="@doc.Id" style="width: 35%"></div></div>
+                                                <div class="index-progress-note" data-index-note="@doc.Id">Document is queued or being indexed. Runtime progress will appear here.</div>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="src-actions">
+                                    @if (doc.IsIndexed)
+                                    {
+                                        <button type="button"
+                                                class="inspect-btn"
+                                                title="View AI index details"
+                                                data-inspect-document-id="@doc.Id"
+                                                data-inspect-file-name="@doc.FileName">
+                                            <i class="bi bi-cpu"></i>
+                                        </button>
+                                    }
+                                    @if (Model.CanDeleteDocuments)
+                                    {
+                                        <form method="post" asp-page-handler="DeleteDocument" asp-route-id="@doc.Id" asp-route-subjectId="@subjectId" asp-route-sessionId="@activeSessionId" onsubmit="return confirmDelete(event, this);">
+                                            <button type="submit" class="del-btn" title="Delete"><i class="bi bi-trash3"></i></button>
+                                        </form>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="empty-hint">
+                            <i class="bi bi-inbox"></i>
+                            No documents yet.<br/>
+                            Upload a file so AI can answer from trusted sources.
+                        </div>
+                    }
+
+                    <div class="history-section">
+                        <div class="history-head">
+                            <div class="sec-title mb-0"><i class="bi bi-clock-history"></i> Chat history</div>
+                            <form method="post" asp-page-handler="NewSession" asp-route-subjectId="@subjectId">
+                                <button type="submit" class="history-new" title="New chat"><i class="bi bi-plus-lg"></i></button>
+                            </form>
+                        </div>
+                        <div class="history-list">
+                            @foreach (var session in Model.ChatSessions ?? Enumerable.Empty<ServiceLayer.Models.ChatSessionSummaryDto>())
+                            {
+                                <div class="history-item @(session.IsActive ? "active" : "")">
+                                    <a class="text-decoration-none overflow-hidden" asp-page="/Chat/Index" asp-route-subjectId="@subjectId" asp-route-sessionId="@session.Id" asp-route-tab="chat">
+                                        <div class="history-title">@session.Title</div>
+                                        <div class="history-meta">@session.MessageCount messages - @session.LastMessagePreview</div>
+                                    </a>
+                                    <form method="post" asp-page-handler="DeleteSession" asp-route-subjectId="@subjectId" asp-route-sessionId="@session.Id" onsubmit="return confirmDeleteSession(event, this);">
+                                        <button type="submit" class="history-delete" title="Delete chat"><i class="bi bi-x-lg"></i></button>
+                                    </form>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+    
+    <!-- MAIN CHAT -->
+    <div class="main">
+        @if (Model.CurrentSession != null)
+        {
+            @if (activeTab == "chat")
+            {
+                <div class="chat-topbar">
+                    <div class="chat-topbar-title"><i class="bi bi-chat-square-text"></i> Conversation</div>
+                    <div class="topbar-actions">
+                        <div class="ai-status starting" id="aiStatus"><span class="spinner-border spinner-border-sm"></span> Checking AI Engine</div>
+                        @if (processingCount > 0)
+                        {
+                            <div class="ai-status starting"><span class="spinner-border spinner-border-sm"></span> Indexing @processingCount documents</div>
+                        }
+                        <div class="scope-badge"><i class="bi bi-shield-lock-fill"></i> Limited to @docCount documents</div>
+                    </div>
+                </div>
+                
+                <div class="chat-area" id="chatBox">
+                    @if (Model.CurrentSession.Messages == null || !Model.CurrentSession.Messages.Any())
+                    {
+                        <div class="welcome">
+                            <div class="welcome-icon"><i class="bi bi-mortarboard"></i></div>
+                            <h3>Start asking questions</h3>
+                            <p>Upload documents on the left, then ask naturally. AI answers from indexed content and cites source documents.</p>
+                            <div class="welcome-tips">
+                                <div class="tip" onclick="fillQ('Summarize the main ideas in this document')"><i class="bi bi-lightbulb"></i> Summarize the main ideas</div>
+                                <div class="tip" onclick="fillQ('List the important concepts')"><i class="bi bi-list-task"></i> List important concepts</div>
+                                <div class="tip" onclick="fillQ('Explain chapter 1 based on the document')"><i class="bi bi-book"></i> Explain chapter 1</div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        foreach (var msg in Model.CurrentSession.Messages.OrderBy(m => m.Timestamp))
+                        {
+                            if (msg.Role == "User")
+                            {
+                                <div class="msg-user">@msg.Content</div>
+                            }
+                            else
+                            {
+                                <div class="msg-bot">
+                                    <div class="bot-header">
+                                        <div class="bot-avatar"><i class="bi bi-stars"></i></div>
+                                        <span class="bot-label">EduChatbot AI</span>
+                                    </div>
+                                    <div class="bot-content" data-markdown="@msg.Content"></div>
+                                    
+                                    @if (!string.IsNullOrEmpty(msg.SourceDocuments))
+                                    {
+                                        <div class="sources-used">
+                                            <div class="sources-head"><i class="bi bi-link-45deg"></i> Sources used</div>
+                                            <div class="sources-list">
+                                            @foreach (var src in msg.SourceDocuments.Split(",", StringSplitOptions.RemoveEmptyEntries))
+                                            {
+                                                <div class="source-row">
+                                                    <div class="source-name"><i class="bi bi-file-earmark-text"></i> @src.Trim()</div>
+                                                    <div class="source-meta">Referenced by this answer</div>
+                                                </div>
+                                            }
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        }
+                    }
+                </div>
+
+                <div class="input-area">
+                    <form method="post" id="chatForm" asp-page-handler="SendMessage" asp-route-subjectId="@subjectId">
+                        <input type="hidden" name="subjectId" value="@subjectId" />
+                        <input type="hidden" name="sessionId" value="@activeSessionId" />
+                        <div class="input-box">
+                            <input type="text" name="content" id="chatInput" placeholder="Ask about the indexed documents..." required autocomplete="off" />
+                            <button type="submit" class="send-btn" id="sendBtn"><i class="bi bi-arrow-up"></i></button>
+                        </div>
+                        <div class="input-hint"><i class="bi bi-shield-lock me-1"></i>AI answers from uploaded documents only and attaches source citations automatically.</div>
+                    </form>
+                </div>
+            }
+            else if (activeTab == "members" && Model.CanManageSubject)
+            {
+                <div class="workspace-panel">
+                    <h2>Members</h2>
+                    <p class="panel-subtitle">Manage who can access @subjectName. Subject leads can add lecturers or students from the same organization; system admins cannot be removed here.</p>
+                    @if (Model.AvailableSubjectMembers?.Any() == true)
+                    {
+                        <form method="post" asp-page-handler="AddMember" asp-route-subjectId="@subjectId" class="panel-actions">
+                            <select class="panel-input" name="userId" required style="max-width: 330px;">
+                                @foreach (var option in Model.AvailableSubjectMembers)
+                                {
+                                    <option value="@option.UserId">@option.Email</option>
+                                }
+                            </select>
+                            <select class="panel-input" name="roleInSubject" required style="max-width: 220px;">
+                                <option value="auto">Account default</option>
+                                @if (currentUserIsAdmin)
+                                {
+                                    <option value="@subjectLeadRole">Subject lead (lecturer only)</option>
+                                }
+                            </select>
+                            <button type="submit" class="panel-btn primary"><i class="bi bi-person-plus"></i> Add member</button>
+                        </form>
+                    }
+                    else
+                    {
+                        <div class="empty-hint"><i class="bi bi-person-check"></i>No organization members are available to add.</div>
+                    }
+                    <div class="workspace-grid">
+                        @foreach (var member in Model.SubjectMembers ?? Enumerable.Empty<ServiceLayer.Models.SubjectMembershipAdminDto>())
+                        {
+                            var subjectRoleLabel = member.RoleInSubject == ServiceLayer.Services.AuthConstants.SubjectLead ? "Subject lead" : member.RoleInSubject;
+                            var canEditSubjectRole = currentUserIsAdmin && !member.IsSystemAdmin && member.RoleInSubject != studentRole;
+                            <div class="workspace-card">
+                                <div class="workspace-card-title"><i class="bi bi-person-circle me-2 text-primary"></i>@member.UserEmail</div>
+                                <div class="workspace-card-meta">Role in subject: @subjectRoleLabel</div>
+                                @if (canEditSubjectRole)
+                                {
+                                    <form method="post" asp-page-handler="UpdateMemberRole" asp-route-subjectId="@subjectId" class="panel-actions mt-3">
+                                        <input type="hidden" name="membershipId" value="@member.Id" />
+                                        <select class="panel-input" name="roleInSubject" aria-label="Subject role for @member.UserEmail">
+                                            @if (member.RoleInSubject == lecturerRole)
+                                            {
+                                                <option value="@lecturerRole" selected>Lecturer</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@lecturerRole">Lecturer</option>
+                                            }
+                                            @if (member.RoleInSubject == subjectLeadRole)
+                                            {
+                                                <option value="@subjectLeadRole" selected>Subject lead</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@subjectLeadRole">Subject lead</option>
+                                            }
+                                        </select>
+                                        <button type="submit" class="panel-btn"><i class="bi bi-person-gear"></i> Save role</button>
+                                    </form>
+                                }
+                                else if (member.RoleInSubject == studentRole)
+                                {
+                                    <div class="workspace-card-meta mt-3"><i class="bi bi-info-circle me-1"></i>Student role is fixed here. Change the account role in Admin &gt; Users first.</div>
+                                }
+                                @if (!member.IsCurrentUser && !member.IsSystemAdmin)
+                                {
+                                    <form method="post" asp-page-handler="RemoveMember" asp-route-subjectId="@subjectId" class="mt-3" onsubmit="return confirm('Remove this member from the subject?');">
+                                        <input type="hidden" name="membershipId" value="@member.Id" />
+                                        <button type="submit" class="panel-btn danger"><i class="bi bi-person-x"></i> Remove</button>
+                                    </form>
+                                }
+                                else if (member.IsSystemAdmin)
+                                {
+                                    <div class="workspace-card-meta mt-3"><i class="bi bi-shield-lock me-1"></i>System admin cannot be removed here.</div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else if (activeTab == "settings" && Model.CanManageSubject)
+            {
+                <div class="workspace-panel">
+                    <h2>Settings</h2>
+                    <p class="panel-subtitle">Update subject information and review the workspace rules for this subject. Subject deletion is reserved for system admins.</p>
+                    <div class="workspace-card">
+                        <form method="post" asp-page-handler="UpdateSubject" class="panel-form">
+                            <input type="hidden" name="Id" value="@subjectId" />
+                            <label>
+                                <span class="panel-label">Subject name</span>
+                                <input class="panel-input mt-1" type="text" name="Name" value="@subjectName" required />
+                            </label>
+                            <label>
+                                <span class="panel-label">Subject code</span>
+                                <input class="panel-input mt-1" type="text" name="Code" value="@subjectCode" required />
+                            </label>
+                            <div class="panel-actions mb-0">
+                                <button type="submit" class="panel-btn primary"><i class="bi bi-check2"></i> Save changes</button>
+                            </div>
+                        </form>
+                        <div class="settings-row mt-3"><strong>Documents</strong><span>@docCount total, @indexedCount indexed, @processingCount processing</span></div>
+                        <div class="settings-row"><strong>Chat history</strong><span>@(Model.ChatSessions?.Count ?? 0) sessions for your account in this subject</span></div>
+                        <div class="settings-row"><strong>Access rule</strong><span>Only Admin or Subject lead can edit subject settings and manage members. Only Subject lead can upload/delete documents.</span></div>
+                        @if (Model.CanDeleteSubject)
+                        {
+                            <form method="post" asp-page-handler="DeleteSubject" asp-route-subjectId="@subjectId" class="mt-3" onsubmit="return confirm('Delete this subject, its documents, memberships, and chat history?');">
+                                <button type="submit" class="panel-btn danger"><i class="bi bi-trash3"></i> Delete subject</button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            }
+        }
+    </div>
+
+    @if (activeTab == "chat")
+    {
+    <aside class="circuit-panel" aria-label="AI processing circuit">
+        <div class="circuit-head">
+            <div class="circuit-title"><i class="bi bi-cpu"></i> AI Circuit Live</div>
+            <div class="circuit-actions">
+                <button type="button" class="circuit-expand" id="circuitExpandBtn" title="Open detailed trace"><i class="bi bi-layout-sidebar-inset-reverse"></i> Details</button>
+                <div class="circuit-state" id="circuitState">Idle</div>
+            </div>
+        </div>
+        <div class="circuit-body" id="circuitBody">
+            <div class="circuit-summary" aria-label="AI trace summary">
+                <div class="circuit-summary-card"><span>Intent</span><strong id="circuitIntent">idle</strong></div>
+                <div class="circuit-summary-card"><span>Rounds</span><strong id="circuitRounds">0</strong></div>
+                <div class="circuit-summary-card"><span>Evidence</span><strong id="circuitEvidenceCount">0 chunks</strong></div>
+            </div>
+            <div class="circuit-board">
+                <div class="circuit-phase"><span>01</span> Gate and query</div>
+                <div class="circuit-row top">
+                    <div class="circuit-node waiting" data-step="question">
+                        <div class="circuit-card"><div class="circuit-icon"><i class="bi bi-chat-dots"></i></div><h4>Question <span class="circuit-chip">waiting</span></h4><div class="circuit-copy">Send a message to watch the RAG pipeline.</div></div>
+                    </div>
+                    <div class="circuit-node waiting" data-step="scope">
+                        <div class="circuit-card"><div class="circuit-icon"><i class="bi bi-shield-check"></i></div><h4>Scope <span class="circuit-chip">waiting</span></h4><div class="circuit-copy">Classifies intent and document scope.</div></div>
+                    </div>
+                    <div class="circuit-node waiting" data-step="rewrite">
+                        <div class="circuit-card"><div class="circuit-icon"><i class="bi bi-pencil-square"></i></div><h4>Rewrite <span class="circuit-chip">waiting</span></h4><div class="circuit-copy">Uses chat context when needed.</div></div>
+                    </div>
+                </div>
+                <div class="circuit-wire"></div>
+                <div class="circuit-phase"><span>02</span> Parallel retrieval loop</div>
+                <div class="circuit-lane-note"><i class="bi bi-diagram-3"></i> Vector, keyword, and metadata branches run at the same request stage, then merge into one ranked candidate list.</div>
+                <div class="circuit-row branches">
+                    <div class="circuit-node branch waiting" data-step="vector">
+                        <div class="circuit-card"><div class="circuit-icon"><i class="bi bi-bounding-box-circles"></i></div><h4>Vector <span class="circuit-chip">waiting</span></h4><div class="circuit-copy">Embedding query and searching ChromaDB.</div></div>
+                    </div>
+                    <div class="circuit-node branch waiting" data-step="keyword">
+                        <div class="circuit-card"><div class="circuit-icon"><i class="bi bi-type"></i></div><h4>Keyword <span class="circuit-chip">waiting</span></h4><div class="circuit-copy">BM25/token search for exact terms.</div></div>
+                    </div>
+                    <div class="circuit-node branch waiting" data-step="metadata">
+                        <div class="circuit-card"><div class="circuit-icon"><i class="bi bi-tags"></i></div><h4>Metadata <span class="circuit-chip">waiting</span></h4><div class="circuit-copy">File, chapter, variant and duplicate hints.</div></div>
+                    </div>
+                </div>
+                <div class="circuit-wire"></div>
+                <div class="circuit-phase"><span>03</span> Evidence and answer</div>
+                <div class="circuit-row merge">
+                    <div class="circuit-node waiting" data-step="merge">
+                        <div class="circuit-card"><div class="circuit-icon"><i class="bi bi-filter-square"></i></div><h4>Rerank/RRF <span class="circuit-chip">waiting</span></h4><div class="circuit-copy">Re-scores retrieved candidates and picks stronger evidence.</div></div>
+                    </div>
+                    <div class="circuit-node waiting" data-step="evidence">
+                        <div class="circuit-card"><div class="circuit-icon"><i class="bi bi-diagram-3"></i></div><h4>Context <span class="circuit-chip">waiting</span></h4><div class="circuit-copy">Only selected chunks are passed into the local LLM.</div></div>
+                    </div>
+                </div>
+                <div class="circuit-wire"></div>
+                <div class="circuit-row final">
+                    <div class="circuit-node waiting" data-step="llm">
+                        <div class="circuit-card"><div class="circuit-icon"><i class="bi bi-stars"></i></div><h4>Local LLM <span class="circuit-chip">waiting</span></h4><div class="circuit-copy">Generates an answer from selected context.</div></div>
+                    </div>
+                    <div class="circuit-node waiting" data-step="citations">
+                        <div class="circuit-card"><div class="circuit-icon"><i class="bi bi-link-45deg"></i></div><h4>Citations <span class="circuit-chip">waiting</span></h4><div class="circuit-copy">Attaches sources used for verification.</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+    }
+</div>
+
+<div class="realtime-toast" id="realtimeToast" role="status" aria-live="polite">
+    <i class="bi bi-broadcast-pin"></i>
+    <span id="realtimeToastText">Workspace updated.</span>
+</div>
+
+<div class="circuit-modal" id="circuitTraceModal" aria-hidden="true">
+    <div class="circuit-dialog">
+        <div class="circuit-dialog-head">
+            <div>
+                <h3 class="circuit-dialog-title"><i class="bi bi-cpu"></i> AI processing trace</h3>
+                <div class="circuit-dialog-subtitle" id="circuitTraceSubtitle">Ask a question to inspect retrieval rounds, evidence, model, and citations.</div>
+            </div>
+            <button type="button" class="circuit-dialog-close" id="circuitTraceClose" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="circuit-dialog-body" id="circuitTraceBody">
+            <div class="empty-hint"><i class="bi bi-cpu"></i>No trace yet. Send a question first.</div>
+        </div>
+    </div>
+</div>
+
+<div class="inspect-modal" id="chunkInspector" aria-hidden="true">
+    <div class="inspect-dialog">
+        <div class="inspect-head">
+            <div>
+                <h3 class="inspect-title"><i class="bi bi-cpu"></i> AI Index Inspector</h3>
+                <div class="inspect-subtitle" id="inspectorFileName">Document</div>
+            </div>
+            <button type="button" class="inspect-close" onclick="closeChunkInspector()" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="inspect-body" id="inspectorBody">
+            <div class="text-center text-secondary py-4"><span class="spinner-border spinner-border-sm me-2"></span>Loading chunks...</div>
+        </div>
+    </div>
+</div>
+
+<div class="chunk-config-modal" id="chunkConfigModal" aria-hidden="true">
+    <div class="chunk-config-dialog" role="dialog" aria-modal="true" aria-labelledby="chunkConfigTitle">
+        <div class="chunk-config-head">
+            <div>
+                <h3 class="chunk-config-title" id="chunkConfigTitle"><i class="bi bi-scissors"></i> Choose chunking configuration</h3>
+                <p class="chunk-config-copy">This choice applies only to the document being uploaded. Adaptive chunking still selects the most suitable document structure.</p>
+            </div>
+            <button type="button" class="chunk-config-close" id="closeChunkConfig" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="chunk-config-body">
+            <div class="chunk-profile-grid" role="radiogroup" aria-label="Chunking profiles">
+                <button type="button" class="chunk-profile active" data-chunk-profile="balanced" data-chunk-size="850" data-chunk-overlap="120" role="radio" aria-checked="true">
+                    <strong>Balanced</strong><small>Recommended for most lecture notes, books, and slides.</small><span class="profile-metric">850 size · 120 overlap</span>
+                </button>
+                <button type="button" class="chunk-profile" data-chunk-profile="precise" data-chunk-size="550" data-chunk-overlap="90" role="radio" aria-checked="false">
+                    <strong>Precise</strong><small>Smaller chunks for definitions, technical details, and exact references.</small><span class="profile-metric">550 size · 90 overlap</span>
+                </button>
+                <button type="button" class="chunk-profile" data-chunk-profile="wide-context" data-chunk-size="1250" data-chunk-overlap="180" role="radio" aria-checked="false">
+                    <strong>Wide context</strong><small>Larger passages for long explanations and narrative documents.</small><span class="profile-metric">1250 size · 180 overlap</span>
+                </button>
+            </div>
+            <button type="button" class="chunk-profile mt-2 w-100" data-chunk-profile="custom" role="radio" aria-checked="false">
+                <strong>Custom configuration</strong><small>Set a chunk size from 300 to 1800 and a safe overlap. Use this only when you have a clear reason to test it.</small>
+            </button>
+            <div class="chunk-custom-panel" id="chunkCustomPanel">
+                <label>Chunk size (characters)<input type="number" id="chunkSizeCustom" min="300" max="1800" value="850" /></label>
+                <label>Overlap (characters)<input type="number" id="chunkOverlapCustom" min="0" max="400" value="120" /></label>
+            </div>
+            <p class="chunk-config-note"><i class="bi bi-info-circle"></i> Smaller chunks improve precise lookup but create more vectors. Larger chunks keep more context but can retrieve broader passages.</p>
+        </div>
+        <div class="chunk-config-actions">
+            <button type="button" class="chunk-config-cancel" id="cancelChunkConfig">Cancel</button>
+            <button type="button" class="chunk-config-confirm" id="chooseFileForChunkConfig"><i class="bi bi-file-earmark-arrow-up"></i> Choose document</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+<script>
+    window.onload = function() {
+        renderExistingBotMessages();
+        checkAiStatus();
+        startIndexProgressPolling();
+        setupWorkspaceRealtime();
+        var box = document.getElementById("chatBox");
+        if (box) {
+            box.style.scrollBehavior = 'auto';
+            box.scrollTop = box.scrollHeight;
+            window.setTimeout(function () { box.style.scrollBehavior = 'smooth'; }, 100);
+        }
+    };
+    function showLoading() {
+        document.getElementById('sendBtn').innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        document.getElementById('sendBtn').classList.add('disabled');
+        document.getElementById('chatInput').readOnly = true;
+    }
+    function fillQ(q) {
+        document.getElementById('chatInput').value = q;
+        document.getElementById('chatInput').focus();
+    }
+
+    function requestToken(form) {
+        return form?.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+    }
+
+    const chatForm = document.getElementById('chatForm');
+    const chatBox = document.getElementById('chatBox');
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const aiStatus = document.getElementById('aiStatus');
+    const circuitState = document.getElementById('circuitState');
+    const circuitBody = document.getElementById('circuitBody');
+    const circuitPanel = document.querySelector('.circuit-panel');
+    const circuitExpandBtn = document.getElementById('circuitExpandBtn');
+    const circuitIntent = document.getElementById('circuitIntent');
+    const circuitRounds = document.getElementById('circuitRounds');
+    const circuitEvidenceCount = document.getElementById('circuitEvidenceCount');
+    const circuitTraceModal = document.getElementById('circuitTraceModal');
+    const circuitTraceBody = document.getElementById('circuitTraceBody');
+    const circuitTraceSubtitle = document.getElementById('circuitTraceSubtitle');
+    const circuitTraceClose = document.getElementById('circuitTraceClose');
+    let hasIndexedDocs = @((indexedCount > 0).ToString().ToLowerInvariant());
+    let indexingInProgress = @((processingCount > 0).ToString().ToLowerInvariant());
+    let uploadInProgress = indexingInProgress;
+    let aiReady = false;
+    let activeChatController = null;
+    let circuitTimers = [];
+    let latestCircuitTrace = null;
+    let latestCircuitSources = '';
+    let latestCircuitQuestion = '';
+    const currentSubjectId = @subjectId;
+    const currentUserId = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(currentUserId));
+    const currentUserCanManageSubject = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.CanManageSubject || currentUserIsAdmin));
+    const aiStatusMaxVisibleRetries = 90;
+    let realtimeRefreshTimer = null;
+    let realtimeToastTimer = null;
+    let indexProgressPollingActive = false;
+
+    function escapeHtml(value) {
+        return String(value || '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
+
+    function showRealtimeToast(message) {
+        const toast = document.getElementById('realtimeToast');
+        const toastText = document.getElementById('realtimeToastText');
+        if (!toast || !toastText) return;
+        toastText.textContent = message;
+        toast.classList.add('show');
+        window.clearTimeout(realtimeToastTimer);
+        realtimeToastTimer = window.setTimeout(() => toast.classList.remove('show'), 3200);
+    }
+
+    function scheduleWorkspaceRefresh(message, delay = 900) {
+        showRealtimeToast(message);
+        window.clearTimeout(realtimeRefreshTimer);
+        realtimeRefreshTimer = window.setTimeout(() => window.location.reload(), delay);
+    }
+
+    function setupWorkspaceRealtime() {
+        if (!window.signalR || !currentSubjectId) return;
+
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl('/hubs/workspace')
+            .withAutomaticReconnect()
+            .build();
+
+        connection.on('SubjectChanged', event => {
+            if (Number(event?.subjectId || 0) !== currentSubjectId) return;
+
+            if (String(event?.action || '') === 'deleted') {
+                showRealtimeToast(`${event.subjectName || 'This subject'} was deleted. Returning to dashboard...`);
+                window.setTimeout(() => { window.location.href = '/'; }, 850);
+                return;
+            }
+
+            scheduleWorkspaceRefresh('Subject settings changed. Refreshing workspace...');
+        });
+
+        connection.on('DocumentChanged', event => {
+            if (Number(event?.subjectId || 0) !== currentSubjectId) return;
+
+            const action = String(event?.action || '');
+            if (action === 'deleted' && event?.documentId) {
+                document.querySelector(`[data-document-card="${event.documentId}"]`)?.remove();
+                const fileLabel = event?.fileName ? `Document ${event.fileName}` : 'Document';
+                scheduleWorkspaceRefresh(`${fileLabel} deleted. Updating workspace...`);
+                return;
+            }
+
+            if (action === 'uploaded' || action === 'processing') {
+                indexingInProgress = true;
+                uploadInProgress = action === 'uploaded';
+                setChatAvailability(aiReady);
+                if (event?.documentId) {
+                    const progressStage = action === 'uploaded' ? 'queued' : 'processing';
+                    updateIndexCardProgress(event.documentId, {
+                        stage: progressStage,
+                        active: true,
+                        percent: action === 'uploaded' ? 35 : 40,
+                        completed: 0,
+                        total: 0,
+                        message: action === 'uploaded'
+                            ? 'Document saved. Waiting for the background indexer...'
+                            : 'AI service is reading, chunking, and embedding this document.'
+                    });
+                    startIndexProgressPolling();
+                }
+                showRealtimeToast(`${event?.fileName || 'Document'} ${action === 'uploaded' ? 'is queued for indexing' : 'is being indexed'}.`);
+                return;
+            }
+
+            if (action === 'indexed' || action === 'failed') {
+                if (event?.documentId) {
+                    updateIndexCardProgress(event.documentId, {
+                        stage: action,
+                        active: false,
+                        percent: action === 'indexed' ? 100 : 0,
+                        completed: 0,
+                        total: 0,
+                        message: action === 'indexed'
+                            ? 'Document indexed successfully.'
+                            : 'Document indexing failed.'
+                    });
+                }
+                const fileLabel = event?.fileName ? `Document ${event.fileName}` : 'Document';
+                scheduleWorkspaceRefresh(`${fileLabel} ${action}. Updating workspace...`);
+                return;
+            }
+
+            const fileLabel = event?.fileName ? `Document ${event.fileName}` : 'Document';
+            scheduleWorkspaceRefresh(`${fileLabel} ${action || 'changed'}. Updating workspace...`);
+        });
+
+        connection.on('MembershipChanged', event => {
+            if (Number(event?.subjectId || 0) !== currentSubjectId) return;
+
+            const affectedUserId = String(event?.userId || '');
+            const action = String(event?.action || '');
+            const affectsCurrentUser = affectedUserId && affectedUserId === currentUserId;
+
+            if (affectsCurrentUser && action === 'removed') {
+                showRealtimeToast('Your access to this subject was removed. Returning to dashboard...');
+                window.setTimeout(() => { window.location.href = '/'; }, 850);
+                return;
+            }
+
+            if (!affectsCurrentUser && !currentUserCanManageSubject) {
+                return;
+            }
+
+            scheduleWorkspaceRefresh('Subject membership changed. Updating access...');
+        });
+
+        connection.start().catch(() => {
+            // Realtime updates are optional; normal page actions still work.
+        });
+    }
+
+    function setAiStatus(state, text) {
+        if (!aiStatus) return;
+        aiStatus.className = `ai-status ${state}`;
+        if (state === 'ready') {
+            aiStatus.innerHTML = `<i class="bi bi-check-circle-fill"></i> ${text}`;
+        } else if (state === 'error') {
+            aiStatus.innerHTML = `<i class="bi bi-exclamation-triangle-fill"></i> ${text}`;
+        } else {
+            aiStatus.innerHTML = `<span class="spinner-border spinner-border-sm"></span> ${text}`;
+        }
+    }
+
+    function setChatAvailability(available) {
+        aiReady = available;
+        const waitingForIndex = uploadInProgress || indexingInProgress;
+        const canChat = aiReady && hasIndexedDocs && !waitingForIndex;
+        if (!chatInput || !sendBtn) return;
+        chatInput.readOnly = !canChat;
+        chatInput.placeholder = canChat
+            ? 'Ask about the indexed documents...'
+            : waitingForIndex
+                ? 'Document indexing is running. Wait until the status changes to Chunked & embedded...'
+                : !hasIndexedDocs
+                    ? 'No indexed documents are ready yet...'
+                    : 'AI Engine is starting. Please wait...';
+        sendBtn.classList.toggle('disabled', !canChat);
+    }
+
+    async function checkAiStatus(retryCount = 0) {
+        setChatAvailability(false);
+        const visibleRetry = Math.min(retryCount + 1, aiStatusMaxVisibleRetries);
+        const startingText = indexingInProgress
+            ? 'AI Engine is busy indexing'
+            : retryCount === 0 ? 'Checking AI Engine' : `AI is starting · check ${visibleRetry}/${aiStatusMaxVisibleRetries}`;
+        setAiStatus('starting', startingText);
+
+        try {
+            const response = await fetch('?handler=AiStatus', { headers: { 'Accept': 'application/json' } });
+            const data = await response.json().catch(() => ({}));
+            if (data.ready) {
+                setAiStatus('ready', indexingInProgress ? 'AI ready · indexing document' : 'AI ready');
+                setChatAvailability(true);
+                return;
+            }
+
+            const nextDelay = retryCount < 20 ? 2000 : 5000;
+            const nextRetry = retryCount < aiStatusMaxVisibleRetries ? retryCount + 1 : retryCount;
+            window.setTimeout(function () { checkAiStatus(nextRetry); }, nextDelay);
+        } catch (error) {
+            const nextDelay = retryCount < 20 ? 2000 : 5000;
+            const nextRetry = retryCount < aiStatusMaxVisibleRetries ? retryCount + 1 : retryCount;
+            const message = indexingInProgress
+                ? 'AI Engine is busy indexing'
+                : retryCount >= 20
+                ? 'AI is still starting in background'
+                : 'Waiting for AI Engine';
+            setAiStatus('starting', message);
+            setChatAvailability(false);
+            window.setTimeout(function () { checkAiStatus(nextRetry); }, nextDelay);
+        }
+    }
+
+    function updateIndexCardProgress(documentId, progress) {
+        const badge = document.querySelector(`[data-index-badge="${documentId}"]`);
+        const fill = document.querySelector(`[data-index-fill="${documentId}"]`);
+        const note = document.querySelector(`[data-index-note="${documentId}"]`);
+        const stageNode = document.querySelector(`[data-index-stage="${documentId}"]`);
+        const percentNode = document.querySelector(`[data-index-percent="${documentId}"]`);
+        const rawPercent = Math.max(0, Math.min(100, Number(progress?.percent || 0)));
+        const completed = Number(progress?.completed || 0);
+        const total = Number(progress?.total || 0);
+        const stage = String(progress?.stage || 'indexing').toLowerCase();
+        const message = String(progress?.message || 'Indexing document...');
+        const isEmbedding = stage === 'embedding' && total > 0;
+        const stageLabel = stage === 'queued'
+            ? 'Queued for indexing'
+            : stage === 'processing'
+                ? 'Starting AI index'
+                : stage === 'extracting'
+                    ? 'Extracting text'
+                    : stage === 'chunked'
+                        ? 'Chunking complete'
+                        : stage === 'embedding'
+                            ? `Embedding chunks${total > 0 ? ` ${completed}/${total}` : ''}`
+                            : stage === 'storing'
+                                ? 'Saving vectors'
+                                : stage === 'indexed'
+                                    ? 'Indexed'
+                                    : stage === 'failed'
+                                        ? 'Index failed'
+                                        : 'Indexing';
+        const visualPercent = stage === 'indexed'
+            ? 100
+            : stage === 'failed'
+                ? 0
+                : stage === 'queued'
+                    ? 35
+                    : stage === 'processing'
+                        ? 40
+                        : stage === 'extracting'
+                            ? 45
+                            : stage === 'chunked'
+                                ? 50
+                                : isEmbedding
+                                    ? Math.round(50 + rawPercent * 0.42)
+                                    : stage === 'storing'
+                                        ? 96
+                                        : Math.max(8, rawPercent || 35);
+
+        if (badge) {
+            const label = total > 0
+                ? `${stage === 'storing' ? 'Storing' : 'Embedding'} ${completed}/${total} (${rawPercent}%)`
+                : stage === 'queued'
+                    ? 'Queued'
+                    : stage === 'processing'
+                        ? 'Starting'
+                        : stage === 'extracting'
+                    ? 'Extracting text'
+                    : stage === 'indexed'
+                        ? 'Chunked & embedded'
+                        : stage === 'failed'
+                            ? 'Index failed'
+                            : 'Indexing';
+            badge.innerHTML = stage === 'indexed'
+                ? `<i class="bi bi-check-circle-fill"></i> ${escapeHtml(label)}`
+                : `<span class="spinner-border spinner-border-sm"></span> ${escapeHtml(label)}`;
+            badge.classList.toggle('badge-ok', stage === 'indexed');
+            badge.classList.toggle('badge-wait', stage !== 'indexed' && stage !== 'failed');
+            badge.classList.toggle('badge-fail', stage === 'failed');
+        }
+
+        if (fill) {
+            fill.classList.remove('indeterminate');
+            fill.style.width = Math.max(0, Math.min(100, visualPercent)) + '%';
+        }
+
+        if (stageNode) {
+            stageNode.textContent = stageLabel;
+        }
+
+        if (percentNode) {
+            percentNode.textContent = visualPercent + '%';
+        }
+
+        if (note) {
+            note.textContent = isEmbedding
+                ? `${message}. Embedded ${completed}/${total} chunks (${rawPercent}%).`
+                : message;
+        }
+    }
+
+    function startIndexProgressPolling() {
+        if (indexProgressPollingActive) return;
+        indexProgressPollingActive = true;
+        async function pollOnce() {
+            const cards = Array.from(document.querySelectorAll('[data-indexing-document-id]'));
+            if (!cards.length) {
+                indexProgressPollingActive = false;
+                return;
+            }
+            let stillActive = false;
+            await Promise.all(cards.map(async card => {
+                const documentId = card.dataset.indexingDocumentId;
+                if (!documentId || !document.body.contains(card)) return;
+
+                try {
+                    const response = await fetch(`?handler=IndexProgress&documentId=${encodeURIComponent(documentId)}`, {
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    const progress = await response.json().catch(() => ({}));
+                    updateIndexCardProgress(documentId, progress);
+                    const stage = String(progress.stage || '').toLowerCase();
+                    const terminal = stage === 'indexed' || stage === 'failed';
+                    stillActive = stillActive || !terminal;
+                    if (stage === 'indexed') {
+                        scheduleWorkspaceRefresh('Document indexing completed. Refreshing workspace...');
+                    } else if (stage === 'failed') {
+                        scheduleWorkspaceRefresh('Document indexing failed. Refreshing workspace...');
+                    }
+                } catch {
+                    stillActive = true;
+                }
+            }));
+
+            if (stillActive) {
+                window.setTimeout(pollOnce, 2200);
+            } else {
+                indexProgressPollingActive = false;
+            }
+        }
+
+        pollOnce();
+    }
+
+    function inlineMarkdown(value) {
+        return escapeHtml(value)
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/`(.+?)`/g, '<code>$1</code>');
+    }
+
+    function renderMarkdown(value) {
+        const lines = String(value || '').replace(/\r\n/g, '\n').split('\n');
+        const html = [];
+        let listType = null;
+
+        function closeList() {
+            if (listType) {
+                html.push(`</${listType}>`);
+                listType = null;
+            }
+        }
+
+        for (const rawLine of lines) {
+            const line = rawLine.trim();
+            if (!line) {
+                closeList();
+                continue;
+            }
+
+            const heading = line.match(/^###\s+(.+)$/);
+            if (heading) {
+                closeList();
+                html.push(`<h3>${inlineMarkdown(heading[1])}</h3>`);
+                continue;
+            }
+
+            const bullet = line.match(/^[-*]\s+(.+)$/);
+            if (bullet) {
+                if (listType !== 'ul') {
+                    closeList();
+                    html.push('<ul>');
+                    listType = 'ul';
+                }
+                html.push(`<li>${inlineMarkdown(bullet[1])}</li>`);
+                continue;
+            }
+
+            const numbered = line.match(/^\d+[.)]\s+(.+)$/);
+            if (numbered) {
+                if (listType !== 'ol') {
+                    closeList();
+                    html.push('<ol>');
+                    listType = 'ol';
+                }
+                html.push(`<li>${inlineMarkdown(numbered[1])}</li>`);
+                continue;
+            }
+
+            closeList();
+            const cls = html.length === 0 ? ' class="answer-lead"' : '';
+            html.push(`<p${cls}>${inlineMarkdown(line)}</p>`);
+        }
+
+        closeList();
+        return html.join('');
+    }
+
+    function renderExistingBotMessages() {
+        document.querySelectorAll('.bot-content[data-markdown]').forEach(function (node) {
+            node.innerHTML = renderMarkdown(node.getAttribute('data-markdown') || '');
+        });
+    }
+
+    function scrollChatToBottom() {
+        if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function clearWelcome() {
+        const welcome = chatBox ? chatBox.querySelector('.welcome') : null;
+        if (welcome) welcome.remove();
+    }
+
+    function appendUserMessage(text) {
+        clearWelcome();
+        const node = document.createElement('div');
+        node.className = 'msg-user';
+        node.textContent = text;
+        chatBox.appendChild(node);
+        scrollChatToBottom();
+    }
+
+    function appendBotLoading() {
+        const node = document.createElement('div');
+        node.className = 'msg-bot';
+        node.id = 'botLoadingMessage';
+        node.innerHTML = `
+            <div class="bot-header">
+                <div class="bot-avatar"><i class="bi bi-stars"></i></div>
+                <span class="bot-label">EduChatbot AI</span>
+            </div>
+            <div class="bot-content"><span class="spinner-border spinner-border-sm me-2"></span>Searching indexed documents...</div>`;
+        chatBox.appendChild(node);
+        scrollChatToBottom();
+        return node;
+    }
+
+    function splitSources(sourceDocuments) {
+        return String(sourceDocuments || '')
+            .split(',')
+            .map(s => s.trim())
+            .filter(Boolean);
+    }
+
+    function compactText(value, max = 150) {
+        const text = String(value || '').replace(/\s+/g, ' ').trim();
+        return text.length > max ? text.slice(0, max - 1) + '…' : text;
+    }
+
+    function getProcessingTrace(trace) {
+        return trace?.processingTrace || trace?.processing_trace || null;
+    }
+
+    function readTraceValue(obj, ...names) {
+        for (const name of names) {
+            if (obj && Object.prototype.hasOwnProperty.call(obj, name) && obj[name] !== null && obj[name] !== undefined) {
+                return obj[name];
+            }
+        }
+        return undefined;
+    }
+
+    function yesNo(value) {
+        return value ? 'yes' : 'no';
+    }
+
+    function asArray(value) {
+        return Array.isArray(value) ? value : [];
+    }
+
+    function traceLine(label, value) {
+        if (value === undefined || value === null || value === '') return '';
+        return `<span class="trace-line"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(String(value))}</span>`;
+    }
+
+    function circuitContent(summary, detail = '', kpis = []) {
+        const chips = (kpis || [])
+            .filter(Boolean)
+            .map(item => `<span>${escapeHtml(item)}</span>`)
+            .join('');
+        return `${summary || ''}${chips ? `<div class="circuit-kpi">${chips}</div>` : ''}${detail ? `<div class="circuit-detail">${detail}</div>` : ''}`;
+    }
+
+    function traceList(label, values, limit = 3) {
+        const list = asArray(values).filter(Boolean).slice(0, limit);
+        if (!list.length) return '';
+        return traceLine(label, list.join(' | '));
+    }
+
+    function traceEvidenceItems(processing, trace) {
+        const evidenceTable = asArray(processing?.evidence_table || processing?.evidenceTable);
+        if (evidenceTable.length) return evidenceTable;
+        const evidence = asArray(processing?.evidence);
+        if (evidence.length) return evidence;
+        return Array.isArray(trace?.contexts) ? trace.contexts : [];
+    }
+
+    function sourceNamesFromEvidence(contexts) {
+        const names = new Set();
+        contexts.forEach(ctx => {
+            if (ctx && Object.prototype.hasOwnProperty.call(ctx, 'used') && ctx.used === false) return;
+            const source = ctx?.source;
+            if (source) names.add(source);
+            asArray(ctx?.duplicate_sources || ctx?.duplicateSources).forEach(duplicate => {
+                if (duplicate) names.add(duplicate);
+            });
+        });
+        return names;
+    }
+
+    function renderSources(sourceDocuments, trace) {
+        const processing = getProcessingTrace(trace);
+        const intent = processing?.intent || '';
+        const traceCitations = asArray(processing?.citations);
+        const contexts = traceEvidenceItems(processing, trace);
+        const sourceNames = contexts.length ? sourceNamesFromEvidence(contexts) : new Set(splitSources(sourceDocuments));
+        if (!contexts.length) {
+            traceCitations.forEach(source => {
+                if (source) sourceNames.add(source);
+            });
+        }
+
+        if (!sourceNames.size || ['greeting', 'small_talk', 'non_document_question', 'arithmetic', 'out_of_scope', 'system', 'ambiguous_acronym'].includes(intent)) return '';
+
+        const rows = Array.from(sourceNames).map(source => {
+            const related = contexts.filter(ctx => ctx?.source === source && (!Object.prototype.hasOwnProperty.call(ctx, 'used') || ctx.used !== false));
+            const first = related[0] || {};
+            const bits = [];
+            const chapters = Array.from(new Set(related.map(ctx => readTraceValue(ctx, 'chapterNumber', 'chapter_number')).filter(Boolean)));
+            const pages = Array.from(new Set(related.map(ctx => readTraceValue(ctx, 'pageNumber', 'page_number')).filter(Boolean)));
+            const section = readTraceValue(first, 'sectionPath', 'section_path');
+            const variant = readTraceValue(first, 'sourceVariant', 'source_variant');
+            const finalScore = readTraceValue(first, 'finalScore', 'final_score', 'similarity');
+            if (chapters.length) bits.push(`chapter ${chapters.slice(0, 2).join(', ')}`);
+            if (pages.length) bits.push(`page ${pages.slice(0, 3).join(', ')}`);
+            if (section) bits.push(compactText(section, 70));
+            if (variant) bits.push(variant);
+            if (typeof finalScore === 'number' && finalScore > 0) bits.push(`score ${finalScore.toFixed(2)}`);
+            const meta = related.length
+                ? `${related.length} evidence chunk${related.length > 1 ? 's' : ''}${bits.length ? ' · ' + bits.join(' · ') : ''}`
+                : 'Referenced by this answer';
+            const previewText = readTraceValue(first, 'matchedChunk', 'matched_chunk', 'content', 'preview');
+            const preview = previewText ? `<div class="source-preview" title="${escapeHtml(compactText(previewText, 260))}">${escapeHtml(compactText(previewText, 95))}</div>` : '';
+            return `<div class="source-row">
+                <div class="source-name"><i class="bi bi-file-earmark-text"></i> ${escapeHtml(source)}</div>
+                <div class="source-meta">${escapeHtml(meta)}</div>
+                ${preview}
+            </div>`;
+        }).join('');
+
+        return `<div class="sources-used">
+            <div class="sources-head"><i class="bi bi-link-45deg"></i> Sources used</div>
+            <div class="sources-list">${rows}</div>
+        </div>`;
+    }
+
+    function setBotMessage(node, text, sourceDocuments, trace) {
+        node.innerHTML = `
+            <div class="bot-header">
+                <div class="bot-avatar"><i class="bi bi-stars"></i></div>
+                <span class="bot-label">EduChatbot AI</span>
+            </div>
+            <div class="bot-content">${renderMarkdown(text)}</div>
+            ${renderSources(sourceDocuments, trace)}`;
+        scrollChatToBottom();
+    }
+
+    function setSending(isSending) {
+        sendBtn.innerHTML = isSending
+            ? '<i class="bi bi-stop-fill"></i>'
+            : '<i class="bi bi-arrow-up"></i>';
+        sendBtn.classList.toggle('stop', isSending);
+        sendBtn.classList.toggle('disabled', false);
+        chatInput.readOnly = isSending;
+    }
+
+    function clearCircuitTimers() {
+        circuitTimers.forEach(timer => window.clearTimeout(timer));
+        circuitTimers = [];
+    }
+
+    function circuitNodes() {
+        return circuitBody ? Array.from(circuitBody.querySelectorAll('.circuit-node')) : [];
+    }
+
+    function setCircuitState(text) {
+        if (circuitState) circuitState.textContent = text;
+    }
+
+    function setCircuitSummary(intent = 'idle', rounds = 0, evidenceCount = 0) {
+        if (circuitIntent) circuitIntent.textContent = compactText(intent || 'idle', 18);
+        if (circuitRounds) circuitRounds.textContent = `${rounds || 0} loop${Number(rounds || 0) === 1 ? '' : 's'}`;
+        if (circuitEvidenceCount) circuitEvidenceCount.textContent = `${evidenceCount || 0} chunk${Number(evidenceCount || 0) === 1 ? '' : 's'}`;
+    }
+
+    function updateCircuitStep(step, status, detail, chip) {
+        const node = circuitBody?.querySelector(`[data-step="${step}"]`);
+        if (!node) return;
+        node.classList.remove('waiting', 'running', 'done', 'blocked', 'error');
+        node.classList.add(status);
+        const label = node.querySelector('.circuit-chip');
+        const body = node.querySelector('.circuit-copy');
+        if (label) label.textContent = chip || status;
+        if (body) body.innerHTML = detail || body.innerHTML;
+    }
+
+    if (circuitExpandBtn) {
+        circuitExpandBtn.addEventListener('click', function () {
+            openCircuitTraceModal();
+        });
+    }
+
+    if (circuitTraceClose) {
+        circuitTraceClose.addEventListener('click', closeCircuitTraceModal);
+    }
+
+    if (circuitTraceModal) {
+        circuitTraceModal.addEventListener('click', function (event) {
+            if (event.target === circuitTraceModal) closeCircuitTraceModal();
+        });
+    }
+
+    function resetCircuit() {
+        clearCircuitTimers();
+        setCircuitState('Idle');
+        setCircuitSummary('idle', 0, 0);
+        latestCircuitTrace = null;
+        latestCircuitSources = '';
+        circuitNodes().forEach(node => {
+            node.classList.remove('running', 'done', 'blocked', 'error');
+            node.classList.add('waiting');
+            const chip = node.querySelector('.circuit-chip');
+            if (chip) chip.textContent = 'waiting';
+        });
+        updateCircuitStep('question', 'waiting', 'Send a message to watch the RAG pipeline.', 'waiting');
+        updateCircuitStep('scope', 'waiting', 'Classifies intent and document scope.', 'waiting');
+        updateCircuitStep('rewrite', 'waiting', 'Uses chat context when needed.', 'waiting');
+        updateCircuitStep('vector', 'waiting', 'Embedding query and searching ChromaDB.', 'waiting');
+        updateCircuitStep('keyword', 'waiting', 'BM25/token search for exact terms.', 'waiting');
+        updateCircuitStep('metadata', 'waiting', 'File, chapter, variant and duplicate hints.', 'waiting');
+        updateCircuitStep('merge', 'waiting', 'Reranks retrieved candidates with RRF/scoring.', 'waiting');
+        updateCircuitStep('evidence', 'waiting', 'Builds the final context window from selected chunks.', 'waiting');
+        updateCircuitStep('llm', 'waiting', 'Generates an answer from selected context.', 'waiting');
+        updateCircuitStep('citations', 'waiting', 'Attaches sources used for verification.', 'waiting');
+    }
+
+    function isGreeting(message) {
+        return /^(hi|hello|helo|xin chào|chào|chao|bạn là ai|ban la ai)$/i.test(message.trim());
+    }
+
+    function likelyOutOfScope(message) {
+        return /^(1\s*\+\s*1|hôm nay|hom nay|thời tiết|thoi tiet|mấy giờ|may gio)/i.test(message.trim());
+    }
+
+    function likelySmallTalk(message) {
+        return /^(tao đẹp trai|toi dep trai|tôi đẹp trai|mình đẹp trai|minh dep trai|tao xinh|tôi xinh|toi buon|tôi buồn|tao buồn|chán quá|chan qua|ok|oke|haha|hihi|hehe|lol)$/i.test(message.trim());
+    }
+
+    function likelyDocumentQuestion(message) {
+        const text = String(message || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const docTerms = /(tai lieu|file|pdf|sach|book|document|source|nguon|chuong|chapter|section|muc|phan|trang|page|gomaa|ddia|uml|database|normalization|use case|class diagram|reliability|scalability|software|design)/i;
+        const learningTerms = /(tom tat|summary|summarize|y chinh|main idea|noi dung|noi ve|noi gi|giai thich|explain|so sanh|compare|liet ke|list|khac nhau|giong nhau|mau thuan|nghia la gi|la gi|what is|how many)/i;
+        if (docTerms.test(text) || learningTerms.test(text)) return true;
+        if (text.includes('?') && text.trim().split(/\s+/).length >= 4 && !/(toi|tao|minh|ban|dep|xau|buon|vui|yeu|ghet)/i.test(text)) return true;
+        return false;
+    }
+
+    function startCircuit(message) {
+        resetCircuit();
+        latestCircuitQuestion = message;
+        setCircuitSummary('running', 1, 0);
+        setCircuitState('Streaming trace');
+        updateCircuitStep('question', 'done', circuitContent(escapeHtml(compactText(message, 120))), 'received');
+        updateCircuitStep('scope', 'running', circuitContent('Waiting for the AI Service guard/router event.'), 'stream');
+        updateCircuitStep('rewrite', 'waiting', circuitContent('Not started yet.'), 'waiting');
+        updateCircuitStep('vector', 'waiting', circuitContent('Not started yet.'), 'waiting');
+        updateCircuitStep('keyword', 'waiting', circuitContent('Not started yet.'), 'waiting');
+        updateCircuitStep('metadata', 'waiting', circuitContent('Not started yet.'), 'waiting');
+        updateCircuitStep('merge', 'waiting', circuitContent('Not started yet.'), 'waiting');
+        updateCircuitStep('evidence', 'waiting', circuitContent('Not started yet.'), 'waiting');
+        updateCircuitStep('llm', 'waiting', circuitContent('Not started yet.'), 'waiting');
+        updateCircuitStep('citations', 'waiting', circuitContent('Not started yet.'), 'waiting');
+    }
+
+    function circuitStepFromTraceNode(nodeName) {
+        const node = String(nodeName || '').toLowerCase();
+        if (node.includes('guard') || node.includes('router')) return 'scope';
+        if (node.includes('rewrite')) return 'rewrite';
+        if (node.includes('vector')) return 'vector';
+        if (node.includes('keyword')) return 'keyword';
+        if (node.includes('metadata')) return 'metadata';
+        if (node.includes('merge') || node.includes('rrf')) return 'merge';
+        if (node.includes('evidence') || node.includes('context')) return 'evidence';
+        if (node.includes('llm')) return 'llm';
+        if (node.includes('citation')) return 'citations';
+        if (node.includes('retrieval')) return 'vector';
+        return 'scope';
+    }
+
+    function applyLiveTraceEvent(payload) {
+        const node = payload || {};
+        const step = circuitStepFromTraceNode(node.node || node.name);
+        const status = String(node.status || 'running').toLowerCase();
+        const uiStatus = status === 'error'
+            ? 'error'
+            : status === 'blocked' || status === 'skipped'
+                ? 'blocked'
+                : status === 'running'
+                    ? 'running'
+                    : 'done';
+        const lines = [
+            node.input_summary ? `<div><strong>Input:</strong> ${escapeHtml(compactText(node.input_summary, 120))}</div>` : '',
+            node.output_summary ? `<div><strong>Output:</strong> ${escapeHtml(compactText(node.output_summary, 160))}</div>` : '',
+            node.intent ? `<div><strong>Intent:</strong> ${escapeHtml(node.intent)}</div>` : '',
+            node.retrieval_policy ? `<div><strong>Policy:</strong> ${escapeHtml(node.retrieval_policy)}</div>` : '',
+            node.selected_count !== undefined ? `<div><strong>Selected:</strong> ${escapeHtml(node.selected_count)} chunks</div>` : '',
+            node.confidence !== undefined ? `<div><strong>Confidence:</strong> ${escapeHtml(Number(node.confidence || 0).toFixed(2))}</div>` : ''
+        ].filter(Boolean).join('');
+        updateCircuitStep(step, uiStatus, circuitContent(lines || 'Streaming event received from AI Service.'), status || 'live');
+
+        if (step === 'vector' && status === 'running') {
+            updateCircuitStep('keyword', 'running', circuitContent('Keyword branch may run alongside vector search.'), 'running');
+            updateCircuitStep('metadata', 'running', circuitContent('Metadata branch may run alongside vector search.'), 'running');
+        }
+        if (step === 'evidence' && Number(node.selected_count || 0) > 0) {
+            setCircuitSummary('document_question', 1, Number(node.selected_count || 0));
+            updateCircuitStep('merge', 'done', circuitContent('Hybrid candidates were merged before evidence selection.'), 'done');
+        }
+    }
+
+    function renderEvidenceMini(contexts) {
+        const items = (contexts || []).filter(ctx => !Object.prototype.hasOwnProperty.call(ctx || {}, 'used') || ctx.used !== false).slice(0, 3).map(ctx => {
+            const parts = [ctx.source || 'source'];
+            const chapter = readTraceValue(ctx, 'chapterNumber', 'chapter_number');
+            const page = readTraceValue(ctx, 'pageNumber', 'page_number');
+            const section = readTraceValue(ctx, 'sectionPath', 'section_path');
+            const score = readTraceValue(ctx, 'finalScore', 'final_score', 'similarity');
+            if (chapter) parts.push(`chapter ${chapter}`);
+            if (page) parts.push(`page ${page}`);
+            if (section) parts.push(compactText(section, 35));
+            if (typeof score === 'number' && score > 0) parts.push(`score ${score.toFixed(2)}`);
+            const preview = readTraceValue(ctx, 'matchedChunk', 'matched_chunk', 'content', 'preview');
+            return `<div class="evidence-item">
+                <strong>${escapeHtml(parts.join(' · '))}</strong>
+                <span>${escapeHtml(compactText(preview, 135))}</span>
+            </div>`;
+        }).join('');
+        return items ? `<div class="evidence-mini">${items}</div>` : '';
+    }
+
+    function renderBranchPreview(branch) {
+        const previews = asArray(branch?.top_preview || branch?.topPreview);
+        if (!previews.length) return '';
+        return `<div class="circuit-detail">${previews.slice(0, 2).map(item => {
+            const bits = [item.source || 'source'];
+            const chapter = readTraceValue(item, 'chapterNumber', 'chapter_number');
+            const page = readTraceValue(item, 'pageNumber', 'page_number');
+            const score = readTraceValue(item, 'score');
+            if (chapter) bits.push(`chapter ${chapter}`);
+            if (page) bits.push(`page ${page}`);
+            if (typeof score === 'number' && score > 0) bits.push(`score ${score.toFixed(2)}`);
+            return `<span class="trace-line"><strong>${escapeHtml(compactText(bits.join(' · '), 80))}</strong> ${escapeHtml(compactText(item.preview || '', 95))}</span>`;
+        }).join('')}</div>`;
+    }
+
+    function getTraceRounds(processing, trace) {
+        const retrieval = processing?.retrieval || {};
+        const agentic = processing?.agentic_trace || processing?.agenticTrace || trace?.agentic_trace || trace?.agenticTrace || {};
+        const rounds = asArray(retrieval.rounds).length ? retrieval.rounds : asArray(agentic.rounds);
+        if (rounds.length) return rounds;
+        if (retrieval.branches || retrieval.merge) {
+            return [{
+                round: 1,
+                query: (processing?.query || {}).rewritten || (processing?.query || {}).original || latestCircuitQuestion,
+                branches: retrieval.branches || {},
+                merge: retrieval.merge || {}
+            }];
+        }
+        return [];
+    }
+
+    function renderTraceMetric(label, value) {
+        return `<div class="trace-metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value === undefined || value === null || value === '' ? '-' : String(value))}</strong></div>`;
+    }
+
+    function branchCount(branch) {
+        return Number(branch?.candidate_count ?? branch?.candidateCount ?? 0);
+    }
+
+    function branchDuration(branch) {
+        const duration = Number(branch?.duration_ms ?? branch?.durationMs ?? 0);
+        return duration ? `${duration} ms` : 'cached/instant';
+    }
+
+    function renderTraceBranch(name, branch) {
+        const count = branchCount(branch);
+        const previews = asArray(branch?.top_preview || branch?.topPreview);
+        const preview = previews[0]
+            ? compactText(`${previews[0].source || 'source'} ${previews[0].preview || ''}`, 120)
+            : (count ? 'Candidates found.' : 'No candidates in this branch.');
+        return `<div class="trace-branch">
+            <strong>${escapeHtml(name)} <em>${count}</em></strong>
+            <span>${escapeHtml(branchDuration(branch))}</span>
+            <span>${escapeHtml(preview)}</span>
+        </div>`;
+    }
+
+    function renderTraceRounds(rounds, retrieval) {
+        if (!rounds.length) {
+            return `<div class="trace-loop">
+                <div class="trace-loop-head"><span>Retrieval skipped</span><span>${escapeHtml(retrieval?.strategy || 'no retrieval')}</span></div>
+                <div class="trace-loop-note">No document search was needed for this intent.</div>
+                <div class="trace-branches">
+                    ${renderTraceBranch('Vector', {})}
+                    ${renderTraceBranch('Keyword', {})}
+                    ${renderTraceBranch('Metadata', {})}
+                </div>
+            </div>`;
+        }
+
+        return rounds.map((round, index) => {
+            const branches = round.branches || {};
+            const merge = round.merge || {};
+            const query = round.query || round.planned_query || round.rewritten || '';
+            const selected = merge.selected_count ?? merge.selectedCount ?? round.selected_count ?? retrieval?.selected_count ?? 0;
+            const merged = merge.candidate_count ?? merge.candidateCount ?? round.candidate_count ?? retrieval?.candidate_count ?? 0;
+            return `<div class="trace-loop">
+                <div class="trace-loop-head">
+                    <span>Round ${escapeHtml(round.round || index + 1)}${query ? ` · ${escapeHtml(compactText(query, 72))}` : ''}</span>
+                    <span>${escapeHtml(merged)} merged · ${escapeHtml(selected)} selected</span>
+                </div>
+                <div class="trace-loop-note">Retriever runs these three branches in parallel. RRF/scoring reranks the combined candidates before context selection.</div>
+                <div class="trace-loop-path">
+                    <span>Parallel search branches</span>
+                    <i class="bi bi-arrow-right"></i>
+                    <span>Merge by RRF/scoring</span>
+                </div>
+                <div class="trace-branches">
+                    ${renderTraceBranch('Vector', branches.vector || {})}
+                    ${renderTraceBranch('Keyword', branches.keyword || {})}
+                    ${renderTraceBranch('Metadata', branches.metadata || {})}
+                </div>
+                <div class="trace-merge-note">
+                    <span><strong>Retrieved:</strong> ${escapeHtml(merged)} candidates</span>
+                    <span><strong>Reranked/selected:</strong> ${escapeHtml(selected)} chunks</span>
+                    <span><strong>Ranker:</strong> ${escapeHtml(merge.strategy || retrieval?.strategy || 'hybrid + RRF')}</span>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function renderTraceEvidenceDetail(contexts) {
+        if (!contexts.length) return '<div class="empty-hint"><i class="bi bi-shield-slash"></i>No selected evidence for this answer.</div>';
+        return `<div class="trace-evidence-list">${contexts.slice(0, 12).map(ctx => {
+            const parts = [ctx.source || 'source'];
+            const chapter = readTraceValue(ctx, 'chapterNumber', 'chapter_number');
+            const page = readTraceValue(ctx, 'pageNumber', 'page_number');
+            const section = readTraceValue(ctx, 'sectionPath', 'section_path');
+            const vectorScore = readTraceValue(ctx, 'vectorScore', 'vector_score');
+            const keywordScore = readTraceValue(ctx, 'keywordScore', 'keyword_score');
+            const metadataBoost = readTraceValue(ctx, 'metadataBoost', 'metadata_boost');
+            const score = readTraceValue(ctx, 'finalScore', 'final_score', 'similarity');
+            const used = !Object.prototype.hasOwnProperty.call(ctx || {}, 'used') || ctx.used !== false;
+            if (chapter) parts.push(`chapter ${chapter}`);
+            if (page) parts.push(`page ${page}`);
+            if (section) parts.push(compactText(section, 58));
+            if (typeof score === 'number' && score > 0) parts.push(`score ${score.toFixed(2)}`);
+            const matched = readTraceValue(ctx, 'matchedChunk', 'matched_chunk', 'content', 'preview');
+            const contextSent = readTraceValue(ctx, 'contextSent', 'context_sent');
+            return `<div class="evidence-item">
+                <strong>${escapeHtml(parts.join(' · '))} · ${used ? 'USED' : 'candidate'}</strong>
+                <span><b>scores:</b> vector ${escapeHtml(vectorScore ?? '-')} · keyword ${escapeHtml(keywordScore ?? '-')} · metadata ${escapeHtml(metadataBoost ?? '-')} · final ${escapeHtml(score ?? '-')}</span>
+                <span><b>matched:</b> ${escapeHtml(compactText(matched, 220))}</span>
+                ${contextSent ? `<span><b>context sent:</b> ${escapeHtml(compactText(contextSent, 260))}</span>` : ''}
+            </div>`;
+        }).join('')}</div>`;
+    }
+
+    function renderCitationVerification(verification, sources) {
+        const verified = asArray(verification?.verified_sources || verification?.verifiedSources || sources);
+        const rejected = asArray(verification?.rejected_sources || verification?.rejectedSources);
+        const status = verification?.status || (verified.length ? 'verified' : 'none');
+        const reason = verification?.reason || (verified.length ? 'Citations are tied to selected evidence.' : 'No document citations were attached.');
+        return `<div class="trace-citation-check">
+            <div class="trace-citation-card ${status === 'verified' ? 'ok' : status === 'partial' ? 'warn' : 'skip'}">
+                <strong><i class="bi bi-patch-check"></i> ${escapeHtml(status)}</strong>
+                <span>${escapeHtml(reason)}</span>
+            </div>
+            <div class="trace-metrics">
+                ${renderTraceMetric('Used evidence', verification?.used_evidence_count ?? verification?.usedEvidenceCount ?? '-')}
+                ${renderTraceMetric('Candidate evidence', verification?.candidate_evidence_count ?? verification?.candidateEvidenceCount ?? '-')}
+                ${renderTraceMetric('Verified sources', verified.join(' | ') || '-')}
+                ${rejected.length ? renderTraceMetric('Rejected source labels', rejected.join(' | ')) : ''}
+            </div>
+        </div>`;
+    }
+
+    function buildCircuitTraceHtml(trace, sourceDocuments) {
+        const processing = getProcessingTrace(trace) || {};
+        const retrieval = processing.retrieval || {};
+        const query = processing.query || {};
+        const decomposition = query.decomposition || {};
+        const scope = processing.scope || {};
+        const checker = processing.checker || {};
+        const llm = processing.llm || {};
+        const citationVerification = processing.citation_verification || processing.citationVerification || {};
+        const contexts = traceEvidenceItems(processing, trace);
+        const rounds = getTraceRounds(processing, trace);
+        const sources = Array.from(contexts.length ? sourceNamesFromEvidence(contexts) : new Set([...splitSources(sourceDocuments), ...asArray(processing.citations)])).filter(Boolean);
+        const confidence = typeof checker.confidence === 'number'
+            ? checker.confidence
+            : (typeof trace?.confidence === 'number' ? trace.confidence : 0);
+
+        const retrievalSkipped = !rounds.length;
+        return `<div class="trace-dashboard">
+            <div class="trace-map-title">
+                <div>
+                    <h4><i class="bi bi-motherboard"></i> System map for this answer</h4>
+                    <p>This view shows what the system used, which branches ran, which evidence entered context, and whether citations were attached.</p>
+                </div>
+                <span class="trace-stage-status">${retrievalSkipped ? 'guarded path' : 'rag path'}</span>
+            </div>
+            <div class="trace-legend">
+                <span><i class="ok"></i> Done: step finished</span>
+                <span><i class="run"></i> Retriever: Vector, Keyword, Metadata run together</span>
+                <span><i class="skip"></i> Skipped/blocked: no trusted evidence used</span>
+            </div>
+            <div class="trace-section-label">Runtime pipeline map</div>
+            <div class="trace-mini-flow">
+                <div class="trace-mini-step"><strong>Question</strong><span>Receives the exact user message for this turn.</span></div>
+                <div class="trace-mini-step"><strong>Scope</strong><span>Classifies intent, subject, document filter, and safety decision.</span></div>
+                <div class="trace-mini-step"><strong>Rewrite</strong><span>Turns follow-up text into a standalone retrieval query when needed.</span></div>
+                <div class="trace-mini-step"><strong>Decompose</strong><span>Splits comparison or multi-document questions into focused subqueries.</span></div>
+                <div class="trace-mini-step"><strong>Vector</strong><span>Embeds the query and searches ChromaDB by semantic similarity.</span></div>
+                <div class="trace-mini-step"><strong>Keyword</strong><span>Searches exact terms, BM25/token matches, and chapter words.</span></div>
+                <div class="trace-mini-step"><strong>Metadata</strong><span>Uses file, chapter, variant, duplicate, and source hints.</span></div>
+                <div class="trace-mini-step"><strong>Merge/RRF</strong><span>Merges branches and reranks candidates into one list.</span></div>
+                <div class="trace-mini-step"><strong>Evidence</strong><span>Selects chunks that enter the final context window.</span></div>
+                <div class="trace-mini-step"><strong>Context</strong><span>Expands matched chunks into bounded context sent to the local model.</span></div>
+                <div class="trace-mini-step"><strong>LLM + Cite</strong><span>Generates the answer and attaches only verified sources.</span></div>
+            </div>
+            <div class="trace-section-label">Runtime trace for this question</div>
+            <div class="trace-flow">
+                <section class="trace-stage" data-step="01">
+                    <div class="trace-stage-head">
+                        <div class="trace-stage-title"><i class="bi bi-chat-dots"></i><div>Question received<small>The raw message is kept separate from rewritten retrieval queries.</small></div></div>
+                        <span class="trace-stage-status">received</span>
+                    </div>
+                    <div class="trace-metrics">
+                        ${renderTraceMetric('Original message', compactText(query.original || latestCircuitQuestion, 160))}
+                        ${renderTraceMetric('Source', 'current chat session')}
+                    </div>
+                </section>
+                <section class="trace-stage" data-step="02">
+                    <div class="trace-stage-head">
+                        <div class="trace-stage-title"><i class="bi bi-shield-check"></i><div>Intent gate and scope<small>Decides whether this is a document-learning question before touching ChromaDB.</small></div></div>
+                        <span class="trace-stage-status">${escapeHtml(scope.decision || 'checked')}</span>
+                    </div>
+                    <div class="trace-metrics">
+                        ${renderTraceMetric('Intent', processing.intent || 'document_question')}
+                        ${renderTraceMetric('Subject', scope.subject_id || currentSubjectId)}
+                        ${renderTraceMetric('Collection', scope.collection || 'edu_documents')}
+                        ${renderTraceMetric('Document filter', asArray(scope.document_filter || scope.document_ids).join(' | ') || 'all indexed docs')}
+                    </div>
+                </section>
+                <section class="trace-stage" data-step="03">
+                    <div class="trace-stage-head">
+                        <div class="trace-stage-title"><i class="bi bi-pencil-square"></i><div>Rewrite and memory<small>Turns follow-ups into standalone retrieval queries and preserves topic scope.</small></div></div>
+                        <span class="trace-stage-status">${escapeHtml(query.rewritten ? 'rewritten' : 'ready')}</span>
+                    </div>
+                    <div class="trace-metrics">
+                        ${renderTraceMetric('Original question', compactText(query.original || latestCircuitQuestion, 120))}
+                        ${renderTraceMetric('Rewritten query', compactText(query.rewritten || query.original || latestCircuitQuestion, 120))}
+                        ${renderTraceMetric('History used', yesNo(query.history_used))}
+                        ${renderTraceMetric('Subject memory used', yesNo(query.subject_memory_used))}
+                        ${renderTraceMetric('Decomposition', decomposition.enabled ? decomposition.strategy || 'enabled' : 'not needed')}
+                        ${decomposition.enabled ? renderTraceMetric('Subqueries', asArray(decomposition.queries).join(' | ')) : ''}
+                    </div>
+                    ${decomposition.enabled ? `<div class="trace-loop-note">${escapeHtml(decomposition.reason || 'The question was split before retrieval so each source can be searched independently.')}</div>` : ''}
+                </section>
+                <section class="trace-stage" data-step="04">
+                    <div class="trace-stage-head">
+                        <div class="trace-stage-title"><i class="bi bi-search"></i><div>Parallel retrieval branches<small>Each round runs vector, keyword, and metadata search before merge.</small></div></div>
+                        <span class="trace-stage-status ${retrievalSkipped ? 'skip' : ''}">${retrievalSkipped ? 'skipped' : `${rounds.length} round${rounds.length === 1 ? '' : 's'}`}</span>
+                    </div>
+                    ${renderTraceRounds(rounds, retrieval)}
+                </section>
+                <section class="trace-stage" data-step="05">
+                    <div class="trace-stage-head">
+                        <div class="trace-stage-title"><i class="bi bi-filter-square"></i><div>Merge / RRF rerank<small>Combines all retrieved candidates and keeps the strongest evidence candidates.</small></div></div>
+                        <span class="trace-stage-status ${retrievalSkipped ? 'skip' : ''}">${retrievalSkipped ? 'skipped' : `${retrieval.selected_count ?? contexts.length} selected`}</span>
+                    </div>
+                    <div class="trace-metrics">
+                        ${renderTraceMetric('Strategy', retrieval.merge?.strategy || retrieval.strategy || 'reciprocal_rank_fusion')}
+                        ${renderTraceMetric('Merged candidates', retrieval.merge?.candidate_count ?? retrieval.candidate_count ?? '-')}
+                        ${renderTraceMetric('Selected candidates', retrieval.merge?.selected_count ?? retrieval.selected_count ?? contexts.length)}
+                        ${renderTraceMetric('Planned queries', asArray(retrieval.planned_queries).join(' | ') || query.rewritten || query.original || '-')}
+                    </div>
+                </section>
+                <section class="trace-stage" data-step="06">
+                    <div class="trace-stage-head">
+                        <div class="trace-stage-title"><i class="bi bi-diagram-3"></i><div>Evidence check and context window<small>Only selected chunks become context for the local answer model.</small></div></div>
+                        <span class="trace-stage-status ${contexts.length ? '' : 'skip'}">${contexts.length ? `${contexts.length} chunks` : 'none'}</span>
+                    </div>
+                    <div class="trace-loop-note">Current demo uses RRF/scoring for reranking. A heavier cross-encoder reranker can be enabled later, but it is not on by default for this 4GB VRAM setup.</div>
+                    ${renderTraceEvidenceDetail(contexts)}
+                </section>
+                <section class="trace-stage" data-step="07">
+                    <div class="trace-stage-head">
+                        <div class="trace-stage-title"><i class="bi bi-stars"></i><div>Local LLM answer<small>The model receives selected evidence only, then the UI attaches citations.</small></div></div>
+                        <span class="trace-stage-status">${escapeHtml(llm.model || trace?.model || 'local')}</span>
+                    </div>
+                    <div class="trace-metrics">
+                        ${renderTraceMetric('Model', llm.model || trace?.model || 'local model')}
+                        ${renderTraceMetric('Policy', llm.policy || 'answer from selected evidence')}
+                        ${renderTraceMetric('Confidence', confidence ? confidence.toFixed(2) : '-')}
+                        ${renderTraceMetric('Fallback used', yesNo(llm.fallback_used || trace?.fallbackUsed || trace?.fallback_used))}
+                    </div>
+                </section>
+                <section class="trace-stage" data-step="08">
+                    <div class="trace-stage-head">
+                        <div class="trace-stage-title"><i class="bi bi-link-45deg"></i><div>Citation verification<small>Only source labels backed by selected evidence can be shown to the user.</small></div></div>
+                        <span class="trace-stage-status ${sources.length ? '' : 'skip'}">${sources.length ? `${sources.length} source${sources.length === 1 ? '' : 's'}` : 'none'}</span>
+                    </div>
+                    ${renderCitationVerification(citationVerification, sources)}
+                </section>
+            </div>
+        </div>`;
+    }
+
+    function openCircuitTraceModal() {
+        if (!circuitTraceModal || !circuitTraceBody) return;
+        circuitTraceModal.classList.add('show');
+        circuitTraceModal.setAttribute('aria-hidden', 'false');
+        if (!latestCircuitTrace) {
+            circuitTraceSubtitle.textContent = 'Ask a question to inspect retrieval rounds, evidence, model, and citations.';
+            circuitTraceBody.innerHTML = '<div class="empty-hint"><i class="bi bi-cpu"></i>No trace yet. Send a question first.</div>';
+            return;
+        }
+        circuitTraceSubtitle.textContent = latestCircuitQuestion
+            ? `Question: ${compactText(latestCircuitQuestion, 130)}`
+            : 'Trace from the latest AI response.';
+        circuitTraceBody.innerHTML = buildCircuitTraceHtml(latestCircuitTrace, latestCircuitSources);
+    }
+
+    function closeCircuitTraceModal() {
+        if (!circuitTraceModal) return;
+        circuitTraceModal.classList.remove('show');
+        circuitTraceModal.setAttribute('aria-hidden', 'true');
+    }
+
+    function updateBranchStep(step, branch, skipped) {
+        if (skipped) {
+            updateCircuitStep(step, 'blocked', circuitContent('Skipped for this intent.'), 'skipped');
+            return;
+        }
+
+        const status = branch?.status === 'error' ? 'error' : 'done';
+        const count = Number(branch?.candidate_count ?? branch?.candidateCount ?? 0);
+        const duration = Number(branch?.duration_ms ?? branch?.durationMs ?? 0);
+        const label = step === 'vector'
+            ? 'Semantic matches from ChromaDB.'
+            : step === 'keyword'
+                ? 'Exact word and BM25 matches.'
+                : 'Document, chapter and variant hints.';
+        const detail = renderBranchPreview(branch);
+        updateCircuitStep(
+            step,
+            count > 0 ? status : 'blocked',
+            circuitContent(label, detail, [`${count} candidates`, duration ? `${duration} ms` : 'cached/instant']),
+            count > 0 ? 'done' : 'none'
+        );
+    }
+
+    function finishCircuit(trace, sourceDocuments) {
+        clearCircuitTimers();
+        latestCircuitTrace = trace || {};
+        latestCircuitSources = sourceDocuments || '';
+        const processing = getProcessingTrace(trace) || {};
+        const intent = processing.intent || 'document_question';
+        const scope = processing.scope || {};
+        const query = processing.query || {};
+        const retrieval = processing.retrieval || {};
+        const decomposition = (processing.query || {}).decomposition || {};
+        const branches = retrieval.branches || {};
+        const merge = retrieval.merge || {};
+        const checker = processing.checker || {};
+        const llm = processing.llm || {};
+        const citationVerification = processing.citation_verification || processing.citationVerification || {};
+        const contexts = traceEvidenceItems(processing, trace);
+        const sourceSet = contexts.length ? sourceNamesFromEvidence(contexts) : new Set([...splitSources(sourceDocuments), ...asArray(processing.citations)]);
+        const sources = Array.from(sourceSet).filter(Boolean);
+        const confidence = typeof checker.confidence === 'number'
+            ? checker.confidence
+            : (typeof trace?.confidence === 'number' ? trace.confidence : 0);
+        const model = llm.model || trace?.model || 'local model';
+        const strategy = retrieval.strategy || trace?.retrievalStrategy || trace?.retrieval_strategy || 'hybrid retrieval';
+        const blockedIntent = ['out_of_scope', 'non_document_question', 'low_confidence', 'ambiguous_acronym'].includes(intent);
+        const skippedIntent = ['greeting', 'small_talk', 'arithmetic', 'system'].includes(intent);
+        const rounds = getTraceRounds(processing, trace);
+        setCircuitSummary(intent, Math.max(1, rounds.length || (skippedIntent || blockedIntent ? 0 : 1)), contexts.length);
+
+        const scopeHtml = [
+            traceLine('intent', intent),
+            traceLine('subject', scope.subject_id),
+            traceLine('decision', scope.decision),
+            traceList('doc filter', scope.document_filter || scope.document_ids, 2)
+        ].join('');
+
+        const rewriteHtml = [
+            traceLine('original', compactText(query.original || '', 90)),
+            traceLine('rewritten', compactText(query.rewritten || query.original || '', 110)),
+            traceLine('history', yesNo(query.history_used)),
+            traceLine('memory', yesNo(query.subject_memory_used))
+        ].join('');
+
+        const retrievalHtml = skippedIntent || blockedIntent
+            ? traceLine('action', scope.decision || 'retrieval skipped')
+            : [
+                traceLine('collection', scope.collection || 'edu_documents'),
+                traceLine('strategy', strategy),
+                traceList('planned', retrieval.planned_queries, 2),
+                traceLine('candidates', retrieval.candidate_count ?? 0),
+                traceLine('selected', retrieval.selected_count ?? contexts.length)
+            ].join('');
+
+        const mergeHtml = skippedIntent || blockedIntent
+            ? traceLine('action', scope.decision || 'merge skipped')
+            : [
+                traceLine('strategy', merge.strategy || 'reciprocal_rank_fusion'),
+                traceLine('merged', merge.candidate_count ?? retrieval.candidate_count ?? 0),
+                traceLine('selected', merge.selected_count ?? retrieval.selected_count ?? contexts.length)
+            ].join('');
+
+        const evidenceHtml = contexts.length
+            ? `${traceLine('selected chunks', contexts.length)}${renderEvidenceMini(contexts)}`
+            : traceLine('evidence', blockedIntent ? 'blocked because evidence is weak or out of scope' : 'no document chunks used');
+
+        const llmHtml = [
+            traceLine('model', model),
+            traceLine('policy', llm.policy || (skippedIntent ? 'direct safe response' : 'document-grounded answer')),
+            traceLine('fallback', yesNo(llm.fallback_used || trace?.fallbackUsed || trace?.fallback_used)),
+            confidence ? traceLine('confidence', confidence.toFixed(2)) : ''
+        ].join('');
+
+        updateCircuitStep('scope', blockedIntent ? 'blocked' : 'done', circuitContent('Scope decision completed.', scopeHtml), blockedIntent ? 'blocked' : 'checked');
+        updateCircuitStep('rewrite', skippedIntent ? 'blocked' : 'done',
+            circuitContent(
+                decomposition.enabled ? 'Query decomposed into focused subqueries.' : 'Query prepared.',
+                rewriteHtml,
+                decomposition.enabled ? [`${asArray(decomposition.queries).length} subqueries`, decomposition.strategy || 'decomposition'] : []
+            ),
+            skippedIntent ? 'skipped' : (decomposition.enabled ? 'decomposed' : 'done'));
+        updateBranchStep('vector', branches.vector, skippedIntent || blockedIntent);
+        updateBranchStep('keyword', branches.keyword, skippedIntent || blockedIntent);
+        updateBranchStep('metadata', branches.metadata, skippedIntent || blockedIntent);
+        updateCircuitStep('merge', skippedIntent || blockedIntent ? 'blocked' : 'done', circuitContent('Retrieved candidates reranked.', mergeHtml), skippedIntent ? 'skipped' : (blockedIntent ? 'blocked' : 'done'));
+        updateCircuitStep('evidence', contexts.length ? 'done' : 'blocked', evidenceHtml, contexts.length ? 'done' : 'none');
+        updateCircuitStep('llm', blockedIntent && !sources.length ? 'blocked' : 'done', circuitContent(skippedIntent ? 'Direct safe response.' : 'Answer step completed.', llmHtml), skippedIntent ? 'direct' : 'done');
+        updateCircuitStep('citations', sources.length ? 'done' : 'blocked',
+            sources.length
+                ? circuitContent(`${sources.length} verified source${sources.length > 1 ? 's' : ''}.`, traceList('sources', sources, 4), [citationVerification.status || 'verified'])
+                : 'No citation because no document evidence was used.',
+            sources.length ? (citationVerification.status || 'verified') : 'none');
+        setCircuitState('Complete');
+    }
+
+    function stopCircuit() {
+        clearCircuitTimers();
+        setCircuitState('Stopped');
+        setCircuitSummary('stopped', 0, 0);
+        updateCircuitStep('llm', 'blocked', 'Request stopped by user before completion.', 'stopped');
+    }
+
+    function updateActiveSessionId(sessionId) {
+        const id = Number(sessionId || 0);
+        if (!id) return;
+        document.querySelectorAll('input[name="sessionId"]').forEach(input => {
+            input.value = String(id);
+        });
+        const url = new URL(window.location.href);
+        url.searchParams.set('sessionId', String(id));
+        window.history.replaceState({}, '', url.toString());
+    }
+
+    function failCircuit(message) {
+        clearCircuitTimers();
+        setCircuitState('Error');
+        setCircuitSummary('error', 0, 0);
+        updateCircuitStep('evidence', 'error', escapeHtml(message || 'AI request failed.'), 'error');
+        updateCircuitStep('llm', 'error', 'No final answer was generated.', 'error');
+    }
+
+    if (chatForm) {
+        sendBtn.addEventListener('click', function (event) {
+            if (!activeChatController) return;
+            event.preventDefault();
+            activeChatController.abort();
+        });
+
+        chatForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            if (activeChatController) return;
+
+            if (!aiReady) {
+                setAiStatus('starting', 'AI chua san sang');
+                checkAiStatus();
+                return;
+            }
+
+            if (!hasIndexedDocs || uploadInProgress || indexingInProgress) {
+                const waitingText = (uploadInProgress || indexingInProgress)
+                    ? 'A document is still being read, chunked, and embedded. Wait until the progress bar finishes, then ask again.'
+                    : 'This subject has no indexed documents yet. Upload a document before asking content questions.';
+                const loadingNode = appendBotLoading();
+                setBotMessage(loadingNode, waitingText, '');
+                failCircuit(waitingText);
+                return;
+            }
+
+            const message = chatInput.value.trim();
+            if (!message) return;
+
+            const formData = new FormData(chatForm);
+            appendUserMessage(message);
+            chatInput.value = '';
+            setSending(true);
+            startCircuit(message);
+            const loadingNode = appendBotLoading();
+            activeChatController = new AbortController();
+
+            const streamUrlObj = new URL(chatForm.action, window.location.origin);
+            streamUrlObj.searchParams.set('handler', 'SendMessageStream');
+            const streamUrl = streamUrlObj.toString();
+
+            fetch(streamUrl, {
+                method: 'POST',
+                body: formData,
+                signal: activeChatController.signal,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'text/event-stream',
+                    'RequestVerificationToken': requestToken(chatForm)
+                }
+            })
+                .then(async response => {
+                    if (!response.ok || !response.body) {
+                        throw new Error('Khong nhan duoc stream tu AI.');
+                    }
+
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder('utf-8');
+                    let buffer = '';
+                    let finalData = null;
+                    let streamError = '';
+
+                    function consumeEvent(rawEvent) {
+                        if (!rawEvent.trim()) return;
+                        let eventName = 'message';
+                        const dataLines = [];
+                        rawEvent.split(/\r?\n/).forEach(line => {
+                            if (line.startsWith('event:')) eventName = line.slice(6).trim();
+                            if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart());
+                        });
+                        if (!dataLines.length) return;
+                        let payload = {};
+                        try {
+                            payload = JSON.parse(dataLines.join('\n'));
+                        } catch {
+                            return;
+                        }
+                        if (eventName === 'trace') {
+                            applyLiveTraceEvent(payload);
+                        } else if (eventName === 'final') {
+                            finalData = payload;
+                        } else if (eventName === 'error') {
+                            streamError = payload.message || 'AI stream error.';
+                            applyLiveTraceEvent({
+                                node: 'Context',
+                                status: 'error',
+                                output_summary: streamError
+                            });
+                        }
+                    }
+
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        buffer += decoder.decode(value, { stream: true });
+                        const events = buffer.split(/\n\n/);
+                        buffer = events.pop() || '';
+                        events.forEach(consumeEvent);
+                    }
+                    if (buffer.trim()) consumeEvent(buffer);
+
+                    if (!finalData || !finalData.success) {
+                        throw new Error(finalData?.message || streamError || 'AI stream ended without a final answer.');
+                    }
+
+                    updateActiveSessionId(finalData.sessionId);
+                    setBotMessage(loadingNode, finalData.bot.content, finalData.bot.sourceDocuments, finalData.trace);
+                    finishCircuit(finalData.trace, finalData.bot.sourceDocuments);
+                })
+                .catch(async error => {
+                    if (error.name === 'AbortError') {
+                        loadingNode.remove();
+                        stopCircuit();
+                        return;
+                    }
+
+                    try {
+                        const fallbackUrlObj = new URL(chatForm.action, window.location.origin);
+                        fallbackUrlObj.searchParams.set('handler', 'SendMessage');
+                        const fallbackResponse = await fetch(fallbackUrlObj.toString(), {
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json',
+                                'RequestVerificationToken': requestToken(chatForm)
+                            }
+                        });
+                        const fallbackData = await fallbackResponse.json().catch(() => ({}));
+                        if (!fallbackResponse.ok || !fallbackData.success) {
+                            throw new Error(fallbackData.message || error.message || 'AI request failed.');
+                        }
+                        updateActiveSessionId(fallbackData.sessionId);
+                        setBotMessage(loadingNode, fallbackData.bot.content, fallbackData.bot.sourceDocuments, fallbackData.trace);
+                        finishCircuit(fallbackData.trace, fallbackData.bot.sourceDocuments);
+                        showRealtimeToast('Streaming trace failed, but the final answer was recovered.');
+                    } catch (fallbackError) {
+                        setBotMessage(loadingNode, fallbackError.message || error.message || 'Loi ket noi toi AI Engine.', '');
+                        failCircuit(fallbackError.message || error.message);
+                    }
+                })
+                .finally(() => {
+                    activeChatController = null;
+                    setSending(false);
+                    chatInput.focus();
+                });
+        });
+    }
+
+    const uploadFile = document.getElementById('uploadFile');
+    const uploadForm = document.getElementById('uploadForm');
+    const chunkConfigModal = document.getElementById('chunkConfigModal');
+    const openChunkConfig = document.getElementById('openChunkConfig');
+    const closeChunkConfig = document.getElementById('closeChunkConfig');
+    const cancelChunkConfig = document.getElementById('cancelChunkConfig');
+    const chooseFileForChunkConfig = document.getElementById('chooseFileForChunkConfig');
+    const chunkProfileInput = document.getElementById('chunkingProfile');
+    const chunkSizeInput = document.getElementById('chunkSize');
+    const chunkOverlapInput = document.getElementById('chunkOverlap');
+    const chunkSizeCustom = document.getElementById('chunkSizeCustom');
+    const chunkOverlapCustom = document.getElementById('chunkOverlapCustom');
+    const chunkCustomPanel = document.getElementById('chunkCustomPanel');
+    const chunkProfileButtons = Array.from(document.querySelectorAll('[data-chunk-profile]'));
+    let activeUploadCardId = '';
+
+    function openChunkConfigModal() {
+        if (!chunkConfigModal) return;
+        chunkConfigModal.classList.add('show');
+        chunkConfigModal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeChunkConfigModal() {
+        if (!chunkConfigModal) return;
+        chunkConfigModal.classList.remove('show');
+        chunkConfigModal.setAttribute('aria-hidden', 'true');
+    }
+
+    function setChunkProfile(profile, size, overlap) {
+        const isCustom = profile === 'custom';
+        chunkProfileButtons.forEach(button => {
+            const active = button.dataset.chunkProfile === profile;
+            button.classList.toggle('active', active);
+            button.setAttribute('aria-checked', active ? 'true' : 'false');
+        });
+        chunkCustomPanel?.classList.toggle('show', isCustom);
+        if (!isCustom) {
+            if (chunkProfileInput) chunkProfileInput.value = profile;
+            if (chunkSizeInput) chunkSizeInput.value = String(size);
+            if (chunkOverlapInput) chunkOverlapInput.value = String(overlap);
+            if (chunkSizeCustom) chunkSizeCustom.value = String(size);
+            if (chunkOverlapCustom) chunkOverlapCustom.value = String(overlap);
+        }
+    }
+
+    openChunkConfig?.addEventListener('click', openChunkConfigModal);
+    closeChunkConfig?.addEventListener('click', closeChunkConfigModal);
+    cancelChunkConfig?.addEventListener('click', closeChunkConfigModal);
+    chunkConfigModal?.addEventListener('click', event => {
+        if (event.target === chunkConfigModal) closeChunkConfigModal();
+    });
+    chunkProfileButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const profile = button.dataset.chunkProfile || 'balanced';
+            setChunkProfile(profile, Number(button.dataset.chunkSize || 850), Number(button.dataset.chunkOverlap || 120));
+        });
+    });
+    chooseFileForChunkConfig?.addEventListener('click', () => {
+        const selected = document.querySelector('[data-chunk-profile].active');
+        const profile = selected?.dataset.chunkProfile || 'balanced';
+        if (profile === 'custom') {
+            const size = Number(chunkSizeCustom?.value || 0);
+            const overlap = Number(chunkOverlapCustom?.value || 0);
+            const maxOverlap = Math.min(400, size - 80);
+            if (size < 300 || size > 1800 || overlap < 0 || overlap > maxOverlap) {
+                showRealtimeToast(`Custom chunk size must be 300-1800; overlap must be 0-${Math.max(0, maxOverlap)}.`);
+                return;
+            }
+            if (chunkProfileInput) chunkProfileInput.value = 'custom';
+            if (chunkSizeInput) chunkSizeInput.value = String(size);
+            if (chunkOverlapInput) chunkOverlapInput.value = String(overlap);
+        }
+        closeChunkConfigModal();
+        uploadFile?.click();
+    });
+
+    function uploadIconClass(fileName) {
+        const lower = String(fileName || '').toLowerCase();
+        if (lower.endsWith('.pdf')) return 'bi-filetype-pdf src-icon-pdf';
+        if (lower.endsWith('.docx') || lower.endsWith('.doc')) return 'bi-filetype-docx src-icon-doc';
+        return 'bi-filetype-pptx src-icon-ppt';
+    }
+
+    function createUploadDocumentCard(fileName) {
+        activeUploadCardId = 'upload-' + Date.now();
+        const documentListTitle = document.getElementById('documentList');
+        if (!documentListTitle) return;
+
+        document.querySelectorAll('[data-upload-progress-card="true"]').forEach(node => node.remove());
+        const card = document.createElement('div');
+        card.className = 'src-card uploading';
+        card.dataset.uploadProgressCard = 'true';
+        card.innerHTML = `
+            <i class="bi ${uploadIconClass(fileName)} src-icon"></i>
+            <div class="flex-grow-1 overflow-hidden">
+                <div class="src-name" title="${escapeHtml(fileName)}">${escapeHtml(fileName)}</div>
+                <div class="src-detail">Preparing upload...</div>
+                <div class="mt-1">
+                    <span class="badge-wait" data-index-badge="${activeUploadCardId}"><span class="spinner-border spinner-border-sm"></span> Uploading</span>
+                    <div class="index-progress" aria-label="Document upload and indexing progress">
+                        <div class="index-progress-head">
+                            <span class="index-progress-stage" data-index-stage="${activeUploadCardId}">Uploading file</span>
+                            <span class="index-progress-percent" data-index-percent="${activeUploadCardId}">0%</span>
+                        </div>
+                        <div class="index-progress-track"><div class="index-progress-fill" data-index-fill="${activeUploadCardId}" style="width: 0%"></div></div>
+                        <div class="index-progress-note" data-index-note="${activeUploadCardId}">Sending file to server.</div>
+                    </div>
+                </div>
+            </div>`;
+        documentListTitle.insertAdjacentElement('afterend', card);
+    }
+
+    function updateUploadDocumentCard(percent, note) {
+        if (!activeUploadCardId) return;
+        const safePercent = Math.max(0, Math.min(100, Math.round(percent)));
+        const badge = document.querySelector(`[data-index-badge="${activeUploadCardId}"]`);
+        const fill = document.querySelector(`[data-index-fill="${activeUploadCardId}"]`);
+        const stageNode = document.querySelector(`[data-index-stage="${activeUploadCardId}"]`);
+        const percentNode = document.querySelector(`[data-index-percent="${activeUploadCardId}"]`);
+        const noteNode = document.querySelector(`[data-index-note="${activeUploadCardId}"]`);
+        const stage = safePercent < 30
+            ? 'Uploading file'
+            : safePercent < 96
+                ? 'Indexing document'
+                : safePercent < 100
+                    ? 'Saving vectors'
+                    : 'Completed';
+
+        if (badge) {
+            const badgeText = safePercent < 30 ? `Uploading ${safePercent}%` : safePercent < 100 ? `Indexing ${safePercent}%` : 'Completed';
+            badge.innerHTML = safePercent >= 100
+                ? `<i class="bi bi-check-circle-fill"></i> ${badgeText}`
+                : `<span class="spinner-border spinner-border-sm"></span> ${badgeText}`;
+            badge.classList.toggle('badge-ok', safePercent >= 100);
+            badge.classList.toggle('badge-wait', safePercent < 100);
+        }
+        if (fill) {
+            fill.classList.remove('indeterminate');
+            fill.style.width = safePercent + '%';
+        }
+        if (stageNode) stageNode.textContent = stage;
+        if (percentNode) percentNode.textContent = safePercent + '%';
+        if (noteNode) noteNode.textContent = note;
+    }
+
+    function bindUploadCardToDocument(documentId) {
+        if (!activeUploadCardId || !documentId) return;
+        const oldId = activeUploadCardId;
+        const newId = String(documentId);
+        const card = document.querySelector('[data-upload-progress-card="true"]');
+        if (card) {
+            card.dataset.indexingDocumentId = newId;
+            card.dataset.documentCard = newId;
+        }
+        document.querySelector(`[data-index-badge="${oldId}"]`)?.setAttribute('data-index-badge', newId);
+        document.querySelector(`[data-index-fill="${oldId}"]`)?.setAttribute('data-index-fill', newId);
+        document.querySelector(`[data-index-stage="${oldId}"]`)?.setAttribute('data-index-stage', newId);
+        document.querySelector(`[data-index-percent="${oldId}"]`)?.setAttribute('data-index-percent', newId);
+        document.querySelector(`[data-index-note="${oldId}"]`)?.setAttribute('data-index-note', newId);
+        activeUploadCardId = newId;
+    }
+
+    function setUploadProgress(percent, note) {
+        const safePercent = Math.max(0, Math.min(100, Math.round(percent)));
+        updateUploadDocumentCard(safePercent, note);
+    }
+
+    if (uploadFile && uploadForm) {
+        uploadFile.addEventListener('change', function () {
+            if (!uploadFile.files || uploadFile.files.length === 0) return;
+
+            const file = uploadFile.files[0];
+            const formData = new FormData(uploadForm);
+            const xhr = new XMLHttpRequest();
+
+            createUploadDocumentCard(file.name);
+            uploadInProgress = true;
+            setChatAvailability(aiReady);
+            setUploadProgress(0, 'Sending file to server.');
+
+            xhr.upload.onprogress = function (event) {
+                if (!event.lengthComputable) return;
+                const uploadPercent = (event.loaded / event.total) * 30;
+                setUploadProgress(uploadPercent, 'Uploading file...');
+            };
+
+            xhr.onloadstart = function () {
+                setUploadProgress(2, 'Preparing upload...');
+            };
+
+            xhr.upload.onload = function () {
+                setUploadProgress(30, 'Upload complete. Creating document record...');
+            };
+
+            xhr.onload = function () {
+                let result = {};
+                try {
+                    result = JSON.parse(xhr.responseText || '{}');
+                } catch {
+                    result = { message: 'Could not read the server response.' };
+                }
+
+                if (xhr.status >= 200 && xhr.status < 300 && result.documentId && result.status !== 'Failed') {
+                    bindUploadCardToDocument(result.documentId);
+                    indexingInProgress = true;
+                    uploadInProgress = false;
+                    setChatAvailability(aiReady);
+                    updateIndexCardProgress(result.documentId, {
+                        stage: 'queued',
+                        active: true,
+                        percent: 8,
+                        completed: 0,
+                        total: 0,
+                        message: 'Document saved. Waiting for the background indexer...'
+                    });
+                    startIndexProgressPolling();
+                } else {
+                    uploadInProgress = false;
+                    indexingInProgress = false;
+                    setChatAvailability(aiReady);
+                    setUploadProgress(100, result.message || 'Indexing failed. Check the Python AI Service.');
+                    const card = document.querySelector('[data-upload-progress-card="true"]');
+                    card?.classList.remove('uploading');
+                    const badge = activeUploadCardId ? document.querySelector(`[data-index-badge="${activeUploadCardId}"]`) : null;
+                    if (badge) {
+                        badge.className = 'badge-fail';
+                        badge.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> Index failed';
+                    }
+                }
+            };
+
+            xhr.onerror = function () {
+                uploadInProgress = false;
+                indexingInProgress = false;
+                setChatAvailability(aiReady);
+                setUploadProgress(100, 'Could not connect to the server while uploading.');
+                const card = document.querySelector('[data-upload-progress-card="true"]');
+                card?.classList.remove('uploading');
+                const badge = activeUploadCardId ? document.querySelector(`[data-index-badge="${activeUploadCardId}"]`) : null;
+                if (badge) {
+                    badge.className = 'badge-fail';
+                    badge.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i> Upload failed';
+                }
+            };
+
+            xhr.open('POST', uploadForm.action);
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.setRequestHeader('Accept', 'application/json');
+            xhr.setRequestHeader('RequestVerificationToken', requestToken(uploadForm));
+            xhr.send(formData);
+            uploadFile.value = '';
+        });
+    }
+    
+    // Confirm destructive document and chat actions with SweetAlert2.
+    async function openChunkInspector(documentId, fileName) {
+        const modal = document.getElementById('chunkInspector');
+        const body = document.getElementById('inspectorBody');
+        document.getElementById('inspectorFileName').textContent = fileName || `Document #${documentId}`;
+        modal.classList.add('show');
+        modal.setAttribute('aria-hidden', 'false');
+        body.innerHTML = '<div class="text-center text-secondary py-4"><span class="spinner-border spinner-border-sm me-2"></span>Loading chunks...</div>';
+
+        try {
+            const response = await fetch(`?handler=DocumentChunks&documentId=${documentId}&offset=0&limit=5`, { headers: { 'Accept': 'application/json' } });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Cannot load chunks.');
+            body.innerHTML = renderChunkInspector(data);
+        } catch (error) {
+            body.innerHTML = `<div class="inspect-panel text-danger">${escapeHtml(error.message || 'Cannot load chunks.')}</div>`;
+        }
+    }
+
+    function closeChunkInspector() {
+        const modal = document.getElementById('chunkInspector');
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+    }
+
+    document.addEventListener('click', function (event) {
+        const button = event.target.closest('[data-inspect-document-id]');
+        if (!button) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        openChunkInspector(button.dataset.inspectDocumentId, button.dataset.inspectFileName || '');
+    });
+
+    window.openChunkInspector = openChunkInspector;
+    window.closeChunkInspector = closeChunkInspector;
+
+    function getMetaValue(meta, camelName, snakeName, fallback = '') {
+        return meta?.[camelName] ?? meta?.[snakeName] ?? fallback;
+    }
+
+    function parseChunkingReport(meta) {
+        const raw = getMetaValue(meta, 'chunkingReport', 'chunking_report', '');
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (parsed && Array.isArray(parsed.strategies)) {
+                    return parsed;
+                }
+            } catch {
+                // Older indexes may not have the JSON report yet.
+            }
+        }
+
+        const strategy = getMetaValue(meta, 'chunkingStrategy', 'chunking_strategy', 'structured_heading');
+        const score = Number(getMetaValue(meta, 'chunkingScore', 'chunking_score', 0)) || 0;
+        const reason = getMetaValue(meta, 'chunkingReason', 'chunking_reason', 'Stored index was created before full adaptive report metadata.');
+        return {
+            enabled: false,
+            selected_strategy: strategy,
+            selected_score: score,
+            summary: reason,
+            strategies: [{
+                strategy,
+                score,
+                size: 0,
+                integrity: 0,
+                metadata: 0,
+                density: 0,
+                reason
+            }]
+        };
+    }
+
+    function renderMetric(value) {
+        const number = Number(value) || 0;
+        const width = Math.max(0, Math.min(100, number * 100));
+        return `<span>${number.toFixed(2)}</span><div class="metric-bar"><div class="metric-fill" style="width:${width}%"></div></div>`;
+    }
+
+    function renderChunkingDecision(meta) {
+        const report = parseChunkingReport(meta);
+        const selected = report.selected_strategy || report.selectedStrategy || 'structured_heading';
+        const selectedScore = Number(report.selected_score ?? report.selectedScore ?? 0) || 0;
+        const strategies = Array.isArray(report.strategies) ? report.strategies : [];
+        const rows = strategies.map(item => {
+            const name = item.strategy || 'unknown';
+            const selectedClass = name === selected ? ' selected' : '';
+            return `<div class="chunking-row${selectedClass}">
+                <strong>${escapeHtml(name)}</strong>
+                <div>${renderMetric(item.score)}</div>
+                <div>${renderMetric(item.size)}</div>
+                <div>${renderMetric(item.integrity)}</div>
+                <div>${renderMetric(item.metadata)}</div>
+                <div>${renderMetric(item.density)}</div>
+                <span>${escapeHtml(item.reason || '')}</span>
+            </div>`;
+        }).join('');
+
+        return `<details class="inspect-panel chunking-decision">
+            <summary>
+                <div class="chunking-header">
+                    <div>
+                        <h4><i class="bi bi-sliders"></i> Adaptive chunking decision</h4>
+                        <p class="chunking-reason">${escapeHtml(report.summary || 'The AI Service evaluated the available chunking strategies before embedding.')}</p>
+                    </div>
+                    <span class="chunking-selected"><i class="bi bi-check2-circle"></i> ${escapeHtml(selected)} · ${selectedScore.toFixed(2)} <i class="bi bi-chevron-down"></i></span>
+                </div>
+            </summary>
+            <div class="chunking-table">
+                <div class="chunking-row header">
+                    <span>Strategy</span><span>Score</span><span>Size</span><span>Integrity</span><span>Metadata</span><span>Coverage</span><span>Reason</span>
+                </div>
+                ${rows || '<div class="text-secondary">No chunking report metadata found. Re-index this document to generate a full report.</div>'}
+            </div>
+        </details>`;
+    }
+
+    function renderChunkInspector(data) {
+        const firstChunk = (data.chunks || [])[0] || {};
+        const meta = firstChunk.metadata || {};
+        const embeddingModel = data.embeddingModel || data.embedding_model || meta.embeddingModel || meta.embedding_model || 'Qwen/Qwen3-Embedding-0.6B';
+        const dimensions = firstChunk.embeddingDimensions || firstChunk.embedding_dimensions || 0;
+        const subjectScope = meta.subjectId ?? meta.subject_id ?? '-';
+        const documentId = data.documentId || data.document_id || meta.documentId || meta.document_id || '';
+        const chunkingStrategy = getMetaValue(meta, 'chunkingStrategy', 'chunking_strategy', 'structured_heading');
+        const chunkingScore = Number(getMetaValue(meta, 'chunkingScore', 'chunking_score', 0)) || 0;
+        const chunkingProfile = getMetaValue(meta, 'chunkingProfile', 'chunking_profile', 'balanced');
+        const configuredChunkSize = Number(getMetaValue(meta, 'chunkSize', 'chunk_size', 0)) || 850;
+        const configuredChunkOverlap = Number(getMetaValue(meta, 'chunkOverlap', 'chunk_overlap', 0)) || 120;
+        const chunks = (data.chunks || []).map(chunk => {
+            const preview = (chunk.embeddingPreview || []).slice(0, 12)
+                .map(v => `<span class="vector-pill">${Number(v).toFixed(4)}</span>`)
+                .join('');
+            const chunkMeta = chunk.metadata || {};
+            const page = chunkMeta.pageNumber ?? chunkMeta.page_number;
+            const chapter = chunkMeta.chapterNumber ?? chunkMeta.chapter_number;
+            const section = chunkMeta.sectionTitle ?? chunkMeta.section_title ?? chunkMeta.sectionPath ?? chunkMeta.section_path;
+            const contextualText = chunkMeta.contextualText ?? chunkMeta.contextual_text ?? '';
+            const contextSource = chunkMeta.contextSource ?? chunkMeta.context_source ?? '';
+            const metaLine = [
+                `chunk #${chunkMeta.chunkIndex ?? chunkMeta.chunk_index ?? 0}`,
+                `${chunkMeta.chunkLength ?? chunkMeta.chunk_length ?? 0} chars`,
+                `${chunk.embeddingDimensions || chunk.embedding_dimensions || 0} dims`,
+                page ? `page ${page}` : '',
+                chapter ? `chapter ${chapter}` : '',
+                section ? escapeHtml(section) : ''
+            ].filter(Boolean).join(' · ');
+            const originalText = compactText(chunk.text || '', 1000);
+            const embeddingText = compactText(contextualText || chunk.text || '', 1000);
+            const isFirst = Number(chunkMeta.chunkIndex ?? chunkMeta.chunk_index ?? -1) === 0;
+            return `<details class="chunk-card" ${isFirst ? 'open' : ''}>
+                <summary>
+                    <div class="chunk-head"><span><i class="bi bi-file-earmark-text"></i>${escapeHtml(chunk.id)}</span><span>${page ? `page ${page}` : 'stored chunk'}</span></div>
+                    <div class="chunk-meta-line">${metaLine}</div>
+                </summary>
+                <div class="chunk-card-body">
+                    <div class="chunk-content-grid">
+                        <div>
+                            <div class="chunk-content-label">Original text <span>used for citation</span></div>
+                            <div class="chunk-text">${escapeHtml(originalText)}</div>
+                        </div>
+                        <div>
+                            <div class="chunk-content-label">Contextual text <span>${escapeHtml(contextSource || 'legacy')}</span></div>
+                            <div class="chunk-context">${escapeHtml(embeddingText)}</div>
+                        </div>
+                    </div>
+                    <div class="vector-preview">${preview || '<span class="text-secondary small">Vector preview is unavailable for this chunk.</span>'}</div>
+                </div>
+            </details>`;
+        }).join('');
+
+        return `<div class="inspect-overview">
+            <div class="inspect-stat success"><span>Index status</span><strong><i class="bi bi-check-circle-fill"></i> Indexed</strong></div>
+            <div class="inspect-stat"><span>Upload profile</span><strong>${escapeHtml(chunkingProfile)}</strong></div>
+            <div class="inspect-stat"><span>Stored chunks</span><strong>${data.total || 0}</strong></div>
+            <div class="inspect-stat"><span>Embedding vector</span><strong>${dimensions || 'unknown'} dimensions</strong></div>
+        </div>
+        <div class="inspect-flow" aria-label="Document indexing flow">
+            <div class="inspect-flow-step" data-step="01"><strong>Extract</strong><span>Read PDF, DOCX, or PPTX text.</span></div>
+            <div class="inspect-flow-step" data-step="02"><strong>Chunk</strong><span>${configuredChunkSize} size · ${configuredChunkOverlap} overlap.</span></div>
+            <div class="inspect-flow-step" data-step="03"><strong>Embed</strong><span>${escapeHtml(embeddingModel)}</span></div>
+            <div class="inspect-flow-step" data-step="04"><strong>Store</strong><span>Chroma vector + SQL metadata.</span></div>
+        </div>
+        ${renderChunkingDecision(meta)}
+        <div class="inspect-grid">
+            <div>
+                <div class="inspect-panel">
+                    <h4>Actual index metadata</h4>
+                    <div class="inspect-kv">
+                        <span>Collection</span><strong>edu_documents</strong>
+                        <span>Embedding model</span><strong>${escapeHtml(embeddingModel)}</strong>
+                        <span>Vector dimensions</span><strong>${dimensions || 'unknown'}</strong>
+                        <span>Upload profile</span><strong>${escapeHtml(chunkingProfile)}</strong>
+                        <span>Chunk config</span><strong>size = ${configuredChunkSize}, overlap = ${configuredChunkOverlap}</strong>
+                        <span>Chunking strategy</span><strong>${escapeHtml(chunkingStrategy)} (${chunkingScore.toFixed(2)})</strong>
+                        <span>Subject scope</span><strong>subject_id = ${subjectScope}</strong>
+                        <span>Document metadata</span><strong>document_id = ${escapeHtml(documentId)}</strong>
+                        <span>Total chunks</span><strong>${data.total || 0}</strong>
+                        <span>Showing</span><strong>${(data.offset || 0) + 1}-${(data.offset || 0) + (data.chunks?.length || 0)}</strong>
+                    </div>
+                </div>
+                <div class="storage-grid">
+                    <div class="storage-card"><strong><i class="bi bi-database"></i> SQL Server</strong>File name, subject, owner, index status, chunk count, chat sessions, and audit events.</div>
+                    <div class="storage-card"><strong><i class="bi bi-hdd-network"></i> ChromaDB</strong>Chunk text, embedding vector, source metadata, and retrieval scope.</div>
+                </div>
+            </div>
+            <div class="inspect-panel">
+                <h4>Stored chunks and vector preview</h4>
+                <p class="chunking-reason">Open a chunk to compare the original text used for citation with the contextual text used for embedding and retrieval.</p>
+                <div class="chunk-list">${chunks || '<div class="text-secondary">No chunks returned from AI service.</div>'}</div>
+            </div>
+        </div>`;
+    }
+
+    function confirmDelete(e, form) {
+        e.preventDefault();
+        Swal.fire({
+            title: 'Delete this document?',
+            text: "The bot will no longer answer from this document.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ea4335',
+            cancelButtonColor: '#2a2a2e',
+            confirmButtonText: '<i class="bi bi-trash3"></i> Delete',
+            cancelButtonText: 'Cancel',
+            background: '#1a1a1e',
+            color: '#e8eaed'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                form.submit();
+            }
+        });
+        return false;
+    }
+
+    function confirmDeleteSession(e, form) {
+        e.preventDefault();
+        Swal.fire({
+            title: 'Delete this chat?',
+            text: 'All messages in this chat session will be deleted.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ea4335',
+            cancelButtonColor: '#2a2a2e',
+            confirmButtonText: '<i class="bi bi-trash3"></i> Delete',
+            cancelButtonText: 'Cancel',
+            background: '#1a1a1e',
+            color: '#e8eaed'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                form.submit();
+            }
+        });
+        return false;
+    }
+</script>
+</body>
+</html>
+
+<!-- TODO(1): Placeholder
+<!-- TODO(2): Placeholder
+<!-- TODO(3): Placeholder
+<!-- TODO(4): Placeholder
+<!-- TODO(5): Placeholder
+<!-- TODO(6): Placeholder
+<!-- TODO(7): Placeholder
+<!-- TODO(8): Placeholder
+<!-- TODO(9): Placeholder
+<!-- TODO(10): Placeholder
+<!-- TODO(11): Placeholder
+<!-- TODO(12): Placeholder
+<!-- TODO(13): Placeholder
+<!-- TODO(14): Placeholder
+<!-- TODO(15): Placeholder
+<!-- TODO(16): Placeholder
+<!-- TODO(17): Placeholder
+<!-- TODO(18): Placeholder
+<!-- TODO(19): Placeholder
+<!-- TODO(20): Placeholder
+<!-- TODO(21): Placeholder
+<!-- TODO(22): Placeholder
+<!-- TODO(23): Placeholder
+<!-- TODO(24): Placeholder
+<!-- TODO(25): Placeholder
+<!-- TODO(26): Placeholder
+<!-- TODO(27): Placeholder
+<!-- TODO(28): Placeholder
+<!-- TODO(29): Placeholder
+<!-- TODO(30): Placeholder
+<!-- TODO(31): Placeholder
+<!-- TODO(32): Placeholder
+<!-- TODO(33): Placeholder
+<!-- TODO(34): Placeholder
+<!-- TODO(35): Placeholder
+<!-- TODO(36): Placeholder
+<!-- TODO(37): Placeholder
+<!-- TODO(38): Placeholder
+<!-- TODO(39): Placeholder
+<!-- TODO(40): Placeholder
+<!-- TODO(41): Placeholder
+<!-- TODO(42): Placeholder
+<!-- TODO(43): Placeholder
+<!-- TODO(44): Placeholder
+<!-- TODO(45): Placeholder
+<!-- TODO(46): Placeholder
+<!-- TODO(47): Placeholder
+<!-- TODO(48): Placeholder
+<!-- TODO(49): Placeholder
+<!-- TODO(50): Placeholder
+<!-- TODO(51): Placeholder
+<!-- TODO(52): Placeholder
+<!-- TODO(53): Placeholder
+<!-- TODO(54): Placeholder
+<!-- TODO(55): Placeholder
+<!-- TODO(56): Placeholder
+<!-- TODO(57): Placeholder
+<!-- TODO(58): Placeholder
+<!-- TODO(59): Placeholder
+<!-- TODO(60): Placeholder
+<!-- TODO(61): Placeholder
+<!-- TODO(62): Placeholder
+<!-- TODO(63): Placeholder
+<!-- TODO(64): Placeholder
+<!-- TODO(65): Placeholder
+<!-- TODO(66): Placeholder
+<!-- TODO(67): Placeholder
+<!-- TODO(68): Placeholder
+<!-- TODO(69): Placeholder
+<!-- TODO(70): Placeholder
+<!-- TODO(71): Placeholder
+<!-- TODO(72): Placeholder
+<!-- TODO(73): Placeholder
+<!-- TODO(74): Placeholder
+<!-- TODO(75): Placeholder
+<!-- TODO(76): Placeholder
+<!-- TODO(77): Placeholder
+<!-- TODO(78): Placeholder
+<!-- TODO(79): Placeholder
+<!-- TODO(80): Placeholder
