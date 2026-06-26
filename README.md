@@ -281,34 +281,3 @@ The benchmark does not prove the chatbot is perfect; it proves the current demo 
 ## Why This Is Not Just A Chatbot Wrapper
 
 The project does not simply send a prompt to an LLM. It has local ingestion, adaptive chunking light, contextual embedding, hybrid retrieval, evidence scoring, duplicate/conflict handling, grounded citation verification, a benchmark suite, and an observability dashboard. The LLM is only the final answer synthesizer after evidence is selected.
-
-<!-- TODO(1): Placeholder
-<!-- TODO(2): Placeholder
-<!-- TODO(3): Placeholder
-<!-- TODO(4): Placeholder
-<!-- TODO(5): Placeholder
-<!-- TODO(6): Placeholder
-<!-- TODO(7): Placeholder
-<!-- TODO(8): Placeholder
-<!-- TODO(9): Placeholder
-<!-- TODO(10): Placeholder
-<!-- TODO(11): Placeholder
-<!-- TODO(12): Placeholder
-<!-- TODO(13): Placeholder
-<!-- TODO(14): Placeholder
-<!-- TODO(15): Placeholder
-<!-- TODO(16): Placeholder
-<!-- TODO(17): Placeholder
-<!-- TODO(18): Placeholder
-<!-- TODO(19): Placeholder
-<!-- TODO(20): Placeholder
-<!-- TODO(21): Placeholder
-<!-- TODO(22): Placeholder
-<!-- TODO(23): Placeholder
-<!-- TODO(24): Placeholder
-<!-- TODO(25): Placeholder
-<!-- TODO(26): Placeholder
-<!-- TODO(27): Placeholder
-<!-- TODO(28): Placeholder
-<!-- TODO(29): Placeholder
-<!-- TODO(30): Placeholder
