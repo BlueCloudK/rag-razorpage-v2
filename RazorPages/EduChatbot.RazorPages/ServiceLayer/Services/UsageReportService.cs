@@ -59,13 +59,51 @@ namespace ServiceLayer.Services
                 .Include(u => u.Subject)
                 .ToListAsync();
 
+            var usageUserIds = usages.Select(u => u.UserId).Distinct().ToList();
+            var rolePairs = usageUserIds.Count == 0
+                ? new List<(string UserId, string RoleName)>()
+                : (await (from userRole in _context.UserRoles
+                          join role in _context.Roles on userRole.RoleId equals role.Id
+                          where usageUserIds.Contains(userRole.UserId)
+                          select new { userRole.UserId, RoleName = role.Name ?? "Unknown" })
+                    .ToListAsync())
+                    .Select(pair => (pair.UserId, pair.RoleName))
+                    .ToList();
+            var rolesByUser = rolePairs
+                .GroupBy(pair => pair.UserId)
+                .ToDictionary(
+                    group => group.Key,
+                    group => string.Join(", ", group.Select(pair => pair.RoleName).Distinct().OrderBy(role => role)));
+
+            var usageSubjectIds = usages
+                .Where(u => u.SubjectId.HasValue)
+                .Select(u => u.SubjectId!.Value)
+                .Distinct()
+                .ToList();
+            var indexedDocumentCounts = usageSubjectIds.Count == 0
+                ? new List<(int SubjectId, int Count)>()
+                : (await _context.Documents
+                    .Where(document => usageSubjectIds.Contains(document.SubjectId) && document.IsIndexed)
+                    .GroupBy(document => document.SubjectId)
+                    .Select(group => new { SubjectId = group.Key, Count = group.Count() })
+                    .ToListAsync())
+                    .Select(item => (item.SubjectId, item.Count))
+                    .ToList();
+            var indexedDocumentsBySubject = indexedDocumentCounts
+                .ToDictionary(item => item.SubjectId, item => item.Count);
+
             var report = new UsageReportDto
             {
                 StartDate = startDate,
                 EndDate = endDate,
                 TotalInputTokens = usages.Sum(u => u.InputTokens),
+                TotalRetrievedContextTokens = usages.Sum(u => u.RetrievedContextTokens),
                 TotalOutputTokens = usages.Sum(u => u.OutputTokens),
-                TotalTokens = usages.Sum(u => u.TotalTokens)
+                TotalTokens = usages.Sum(u => u.TotalTokens),
+                CompletedQuestionCount = usages.Count,
+                ActiveUserCount = usageUserIds.Count,
+                IndexedDocumentCount = indexedDocumentCounts.Sum(item => item.Count),
+                TokensAreEstimated = usages.Any(u => u.IsEstimated)
             };
 
             report.DailyUsages = usages
@@ -74,6 +112,7 @@ namespace ServiceLayer.Services
                 {
                     Date = g.Key,
                     InputTokens = g.Sum(x => x.InputTokens),
+                    RetrievedContextTokens = g.Sum(x => x.RetrievedContextTokens),
                     OutputTokens = g.Sum(x => x.OutputTokens),
                     TotalTokens = g.Sum(x => x.TotalTokens)
                 })
@@ -81,12 +120,21 @@ namespace ServiceLayer.Services
                 .ToList();
 
             report.UserUsages = usages
-                .GroupBy(u => new { u.UserId, Email = u.User?.Email ?? "Unknown" })
+                .GroupBy(u => new
+                {
+                    u.UserId,
+                    UserName = u.User?.FullName ?? string.Empty,
+                    Email = u.User?.Email ?? "Unknown"
+                })
                 .Select(g => new UserTokenUsageDto
                 {
                     UserId = g.Key.UserId,
+                    UserName = string.IsNullOrWhiteSpace(g.Key.UserName) ? g.Key.Email : g.Key.UserName,
                     Email = g.Key.Email,
+                    SystemRole = rolesByUser.GetValueOrDefault(g.Key.UserId, "Unknown"),
+                    QuestionCount = g.Count(),
                     InputTokens = g.Sum(x => x.InputTokens),
+                    RetrievedContextTokens = g.Sum(x => x.RetrievedContextTokens),
                     OutputTokens = g.Sum(x => x.OutputTokens),
                     TotalTokens = g.Sum(x => x.TotalTokens)
                 })
@@ -95,14 +143,22 @@ namespace ServiceLayer.Services
 
             report.SubjectUsages = usages
                 .Where(u => u.SubjectId.HasValue)
-                .GroupBy(u => new { SubjectId = u.SubjectId!.Value, SubjectName = u.Subject?.Name ?? "Unknown" })
+                .GroupBy(u => new
+                {
+                    SubjectId = u.SubjectId!.Value,
+                    SubjectName = u.Subject?.Name ?? "Unknown",
+                    SubjectCode = u.Subject?.Code ?? string.Empty
+                })
                 .Select(g => new SubjectTokenUsageDto
                 {
                     SubjectId = g.Key.SubjectId,
                     SubjectName = g.Key.SubjectName,
+                    SubjectCode = g.Key.SubjectCode,
+                    QuestionCount = g.Count(),
                     InputTokens = g.Sum(x => x.InputTokens),
                     OutputTokens = g.Sum(x => x.OutputTokens),
-                    TotalTokens = g.Sum(x => x.TotalTokens)
+                    TotalTokens = g.Sum(x => x.TotalTokens),
+                    IndexedDocumentCount = indexedDocumentsBySubject.GetValueOrDefault(g.Key.SubjectId)
                 })
                 .OrderByDescending(s => s.TotalTokens)
                 .ToList();
