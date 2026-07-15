@@ -1334,6 +1334,46 @@ h1, h2 { margin: 0; }
   margin-top: 7px;
 }
 
+/* Report period links are deliberately independent controls, not one text row. */
+.usage-report .report-period .period-tabs {
+  align-items: stretch;
+  background: transparent;
+  border: 0;
+  display: inline-flex;
+  gap: 8px;
+  padding: 0;
+}
+
+.usage-report .report-period .period-tabs .period-tab {
+  align-items: center;
+  background: #151922;
+  border: 1px solid #46516a;
+  border-radius: 6px;
+  color: #d5dced;
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 800;
+  justify-content: center;
+  min-height: 38px;
+  min-width: 82px;
+  padding: 0 13px;
+  text-decoration: none;
+}
+
+.usage-report .report-period .period-tabs .period-tab:hover {
+  background: #252e42;
+  border-color: #7886aa;
+  color: #fff;
+}
+
+.usage-report .report-period .period-tabs .period-tab.is-active,
+.usage-report .report-period .period-tabs .period-tab[aria-current="page"] {
+  background: #6375e8 !important;
+  border-color: #a6b0ff !important;
+  box-shadow: 0 2px 8px rgba(52, 69, 176, 0.5);
+  color: #fff !important;
+}
+
 #chatForm {
   display: grid;
   grid-template-columns: 1fr auto;

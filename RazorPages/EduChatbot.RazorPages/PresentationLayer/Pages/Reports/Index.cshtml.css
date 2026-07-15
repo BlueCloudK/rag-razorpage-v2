@@ -15,10 +15,12 @@
 .period-copy { display: grid; gap: 3px; }
 .period-copy span { color: var(--muted); font-size: .75rem; }
 .period-copy strong { color: var(--text); font-size: .84rem; }
-.period-tabs { display: inline-flex; gap: 3px; }
-.period-tab { align-items: center; background: transparent; border: 1px solid transparent; border-radius: 6px; color: var(--muted); display: inline-flex; font-size: .78rem; font-weight: 800; justify-content: center; line-height: 1; min-height: 32px; padding: 0 11px; white-space: nowrap; }
-.period-tab:hover { background: var(--panel-2); color: var(--text); }
-.period-tab.is-active { background: var(--brand); border-color: #92a0ff; box-shadow: 0 2px 7px rgba(70,84,214,.22); color: #fff; }
+.period-tabs { align-items: stretch; display: inline-flex; gap: 8px; }
+.period-tab { align-items: center; background: #151922; border: 1px solid #3b455a; border-radius: 6px; color: #c8d0df; display: inline-flex; font-size: .78rem; font-weight: 800; justify-content: center; letter-spacing: 0; line-height: 1; min-height: 36px; min-width: 76px; padding: 0 12px; text-decoration: none; transition: background-color .15s ease, border-color .15s ease, color .15s ease; white-space: nowrap; }
+.period-tab:hover { background: #242b3a; border-color: #66728b; color: #fff; }
+.period-tab:focus-visible { outline: 2px solid #9aa8ff; outline-offset: 2px; }
+.period-tab.is-active,
+.period-tab[aria-current="page"] { background: #5f70df !important; border-color: #a0adff !important; box-shadow: 0 2px 7px rgba(34, 46, 123, .48); color: #fff !important; }
 .report-metrics { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: hidden; }
 .report-metrics article { border-right: 1px solid var(--line); min-height: 104px; padding: 16px; }
 .report-metrics article:last-child { border-right: 0; }
