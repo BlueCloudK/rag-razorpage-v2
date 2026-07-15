@@ -7,6 +7,10 @@
     var inputPercent = Math.Round((double)Model.Report.TotalInputTokens / totalTokens * 100, 1);
     var contextPercent = Math.Round((double)Model.Report.TotalRetrievedContextTokens / totalTokens * 100, 1);
     var outputPercent = Math.Round((double)Model.Report.TotalOutputTokens / totalTokens * 100, 1);
+    var dailyUsageByDate = Model.Report.DailyUsages.ToDictionary(day => day.Date.Date);
+    var reportDates = Enumerable.Range(0, (Model.Report.EndDate.Date - Model.Report.StartDate.Date).Days + 1)
+        .Select(offset => Model.Report.StartDate.Date.AddDays(offset))
+        .ToList();
 }
 
 <section class="usage-report" aria-labelledby="report-title">
@@ -83,15 +87,17 @@
                         <span>Activity trend</span>
                         <h2>Daily token usage</h2>
                     </div>
-                    <strong>@Model.Report.DailyUsages.Count days active</strong>
+                    <strong>@Model.Report.DailyUsages.Count @(Model.Report.DailyUsages.Count == 1 ? "day" : "days") active</strong>
                 </div>
                 <div class="usage-bars" aria-label="Daily token usage">
-                    @foreach (var day in Model.Report.DailyUsages)
+                    @foreach (var date in reportDates)
                     {
-                        var height = Math.Max(8, Math.Round((double)day.TotalTokens / Model.MaxDailyTokens * 100));
-                        <div class="usage-bar">
-                            <span style="height:@height%" title="@day.Date.ToString("dd MMM yyyy"): @day.TotalTokens.ToString("N0") tokens"></span>
-                            <small>@day.Date.ToString("dd/MM")</small>
+                        var total = dailyUsageByDate.TryGetValue(date, out var day) ? day.TotalTokens : 0;
+                        var height = total == 0 ? 3 : Math.Max(12, Math.Round((double)total / Model.MaxDailyTokens * 78));
+                        var showLabel = reportDates.Count <= 14 || date == reportDates.First() || date == reportDates.Last() || date.Day == 1;
+                        <div class="usage-bar @(total == 0 ? "empty" : null)">
+                            <span style="height:@height%" title="@date.ToString("dd MMM yyyy"): @total.ToString("N0") tokens"></span>
+                            <small>@(showLabel ? date.ToString("dd/MM") : "")</small>
                         </div>
                     }
                 </div>

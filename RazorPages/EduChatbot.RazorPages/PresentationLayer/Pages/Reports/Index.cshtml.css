@@ -16,9 +16,10 @@
 .period-copy span { color: var(--muted); font-size: .75rem; }
 .period-copy strong { color: var(--text); font-size: .84rem; }
 .period-tabs { display: flex; gap: 5px; }
-.period-tabs a { border: 1px solid transparent; border-radius: 6px; color: var(--muted); font-size: .78rem; font-weight: 800; padding: 7px 10px; }
+.period-tabs { background: #11141b; border: 1px solid var(--line); border-radius: 7px; padding: 3px; }
+.period-tabs a { border: 1px solid transparent; border-radius: 5px; color: var(--muted); font-size: .78rem; font-weight: 800; padding: 7px 10px; }
 .period-tabs a:hover { background: var(--panel-2); color: var(--text); }
-.period-tabs a.active { background: rgba(109, 124, 255, .16); border-color: rgba(109, 124, 255, .36); color: #e4e8ff; }
+.period-tabs a.active { background: var(--brand); border-color: #8692ff; box-shadow: 0 2px 8px rgba(0,0,0,.22); color: #fff; }
 .report-metrics { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: hidden; }
 .report-metrics article { border-right: 1px solid var(--line); min-height: 104px; padding: 16px; }
 .report-metrics article:last-child { border-right: 0; }
@@ -35,9 +36,10 @@
 .surface-heading { align-items: flex-start; display: flex; gap: 16px; justify-content: space-between; margin-bottom: 17px; }
 .surface-heading h2 { font-size: 1rem; margin: 0; }
 .surface-heading > strong { color: var(--muted); font-size: .76rem; white-space: nowrap; }
-.usage-bars { align-items: end; display: grid; gap: 5px; grid-auto-columns: minmax(22px, 1fr); grid-auto-flow: column; height: 220px; overflow-x: auto; }
+.usage-bars { align-items: end; background: repeating-linear-gradient(to bottom, transparent 0, transparent 53px, rgba(44,51,66,.52) 54px); display: grid; gap: 5px; grid-auto-columns: minmax(22px, 1fr); grid-auto-flow: column; height: 220px; overflow-x: auto; padding-top: 4px; }
 .usage-bar { align-items: center; display: grid; gap: 6px; grid-template-rows: 1fr auto; height: 100%; min-width: 24px; }
-.usage-bar span { align-self: end; background: #6875f5; border-radius: 4px 4px 0 0; display: block; min-height: 8px; width: 100%; }
+.usage-bar span { align-self: end; background: #6875f5; border-radius: 4px 4px 0 0; display: block; min-height: 3px; width: 100%; }
+.usage-bar.empty span { background: #303747; }
 .usage-bar small { color: var(--muted); font-size: .65rem; text-align: center; white-space: nowrap; }
 .token-list { display: grid; gap: 16px; }
 .token-list > div { display: grid; gap: 7px; }
@@ -47,10 +49,10 @@
 .token-list progress { accent-color: var(--brand); height: 7px; width: 100%; }
 .token-list b { color: var(--muted); font-weight: 700; }
 .table-surface { padding: 0; overflow: hidden; }
-.table-surface .surface-heading { margin: 0; padding: 17px 17px 13px; }
+.table-surface .surface-heading { margin: 0; padding: 14px 17px 11px; }
 .report-table-wrap { overflow-x: auto; }
 .report-table { border-collapse: collapse; min-width: 640px; width: 100%; }
-.report-table th, .report-table td { border-top: 1px solid var(--line); padding: 12px 17px; text-align: left; vertical-align: middle; }
+.report-table th, .report-table td { border-top: 1px solid var(--line); padding: 10px 17px; text-align: left; vertical-align: middle; }
 .report-table th { color: var(--muted); font-size: .7rem; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
 .report-table td { color: #dce1eb; font-size: .83rem; }
 .report-table td strong, .report-table td span { display: block; }
