@@ -1,0 +1,130 @@
+@page
+@model PresentationLayer.Pages.Reports.UsageModel
+@{
+    ViewData["Title"] = "Detailed usage";
+    var hasUsage = Model.Report.UserUsages.Count > 0 || Model.Report.SubjectUsages.Count > 0;
+}
+
+<section class="usage-page">
+    <header class="usage-hero">
+        <div>
+            <a class="back-link" asp-page="/Reports/Index">Back to reports</a>
+            <p class="eyebrow">Detailed usage</p>
+            <h1>User and subject tables</h1>
+            <p>Privacy-safe totals only. Chat content, prompts, answers, and document text are not displayed.</p>
+        </div>
+    </header>
+
+    <div class="usage-toolbar">
+        <nav class="day-filter" aria-label="Reporting period">
+            @foreach (var days in new[] { 7, 30, 90 })
+            {
+                <a class="@(Model.Days == days ? "active" : null)"
+                   asp-page="/Reports/Usage"
+                   asp-route-days="@days"
+                   aria-current="@(Model.Days == days ? "page" : null)">@days days</a>
+            }
+        </nav>
+        <span>@Model.Report.StartDate.ToString("dd MMM yyyy") - @Model.Report.EndDate.ToString("dd MMM yyyy")</span>
+    </div>
+
+    @if (!hasUsage)
+    {
+        <div class="empty-state" role="status">
+            <h2>No usage in this period</h2>
+            <p>Tracking begins after new AI answers complete successfully.</p>
+        </div>
+    }
+
+    <section class="usage-panel" aria-labelledby="user-table-heading">
+        <div class="panel-heading">
+            <div>
+                <p class="section-kicker">People</p>
+                <h2 id="user-table-heading">Token usage by user</h2>
+            </div>
+            <span>@Model.Report.UserUsages.Count users</span>
+        </div>
+        <div class="table-wrap">
+            <table class="usage-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Role</th>
+                        <th class="numeric">Questions</th>
+                        <th class="numeric">Input</th>
+                        <th class="numeric">Context</th>
+                        <th class="numeric">Output</th>
+                        <th class="numeric">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Report.UserUsages.Count == 0)
+                    {
+                        <tr><td colspan="7">No user usage is available.</td></tr>
+                    }
+                    else
+                    {
+                        @foreach (var user in Model.Report.UserUsages)
+                        {
+                            <tr>
+                                <td data-label="User">
+                                    <strong>@user.UserName</strong>
+                                    <span>@user.Email</span>
+                                </td>
+                                <td data-label="Role">@user.SystemRole</td>
+                                <td data-label="Questions" class="numeric">@user.QuestionCount.ToString("N0")</td>
+                                <td data-label="Input" class="numeric">@user.InputTokens.ToString("N0")</td>
+                                <td data-label="Context" class="numeric">@user.RetrievedContextTokens.ToString("N0")</td>
+                                <td data-label="Output" class="numeric">@user.OutputTokens.ToString("N0")</td>
+                                <td data-label="Total" class="numeric total-cell">@user.TotalTokens.ToString("N0")</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="usage-panel" aria-labelledby="subject-table-heading">
+        <div class="panel-heading">
+            <div>
+                <p class="section-kicker">Subjects</p>
+                <h2 id="subject-table-heading">Activity by subject</h2>
+            </div>
+            <span>@Model.Report.SubjectUsages.Count subjects</span>
+        </div>
+        <div class="table-wrap">
+            <table class="usage-table">
+                <thead>
+                    <tr>
+                        <th>Subject</th>
+                        <th class="numeric">Questions</th>
+                        <th class="numeric">Total tokens</th>
+                        <th class="numeric">Indexed documents</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Report.SubjectUsages.Count == 0)
+                    {
+                        <tr><td colspan="4">No subject activity is available.</td></tr>
+                    }
+                    else
+                    {
+                        @foreach (var subject in Model.Report.SubjectUsages)
+                        {
+                            <tr>
+                                <td data-label="Subject">
+                                    <strong>@subject.SubjectName</strong>
+                                    <span>@subject.SubjectCode</span>
+                                </td>
+                                <td data-label="Questions" class="numeric">@subject.QuestionCount.ToString("N0")</td>
+                                <td data-label="Total tokens" class="numeric total-cell">@subject.TotalTokens.ToString("N0")</td>
+                                <td data-label="Indexed documents" class="numeric">@subject.IndexedDocumentCount.ToString("N0")</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+</section>

@@ -13,7 +13,7 @@
     <script type="importmap"></script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/EduChatbot.RazorPages.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/PresentationLayer.styles.css" asp-append-version="true" />
 </head>
 <body class="app-body @(isAdminSection ? "admin-mode" : "")">
     <a class="skip-link" href="#main-content">Skip to content</a>
@@ -53,6 +53,12 @@
                             <li class="nav-item">
                                 <a class="nav-link" asp-area="" asp-page="/Subjects/Index">Subjects</a>
                             </li>
+                            @if (User.Identity?.IsAuthenticated == true)
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-area="" asp-page="/Reports/Index">Reports</a>
+                                </li>
+                            }
                             @if (User.IsInRole("Admin"))
                             {
                                 <li class="nav-item">

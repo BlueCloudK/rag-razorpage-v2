@@ -26,6 +26,9 @@ namespace ServiceLayer.Models
         public int TotalOutputTokens { get; set; }
         public int TotalTokens { get; set; }
         public int QuestionCount { get; set; }
+        public int CompletedQuestionCount { get; set; }
+        public int ActiveUserCount { get; set; }
+        public int IndexedDocumentCount { get; set; }
         public bool TokensAreEstimated { get; set; }
 
         public List<DailyTokenUsageDto> DailyUsages { get; set; } = new();
@@ -46,7 +49,9 @@ namespace ServiceLayer.Models
     public class UserTokenUsageDto
     {
         public string UserId { get; set; } = string.Empty;
+        public string UserName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
+        public string SystemRole { get; set; } = string.Empty;
         public int QuestionCount { get; set; }
         public int InputTokens { get; set; }
         public int RetrievedContextTokens { get; set; }
@@ -58,10 +63,12 @@ namespace ServiceLayer.Models
     {
         public int SubjectId { get; set; }
         public string SubjectName { get; set; } = string.Empty;
+        public string SubjectCode { get; set; } = string.Empty;
         public int QuestionCount { get; set; }
         public int InputTokens { get; set; }
         public int RetrievedContextTokens { get; set; }
         public int OutputTokens { get; set; }
         public int TotalTokens { get; set; }
+        public int IndexedDocumentCount { get; set; }
     }
 }
