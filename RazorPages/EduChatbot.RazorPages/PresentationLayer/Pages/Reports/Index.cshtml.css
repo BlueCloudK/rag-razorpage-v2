@@ -1,14 +1,21 @@
 .reports-page {
     display: grid;
-    gap: 1.5rem;
+    gap: 1.25rem;
     min-width: 0;
 }
 
 .reports-hero {
     align-items: flex-start;
+    background:
+        linear-gradient(135deg, rgba(109, 124, 255, .14), rgba(23, 26, 33, .94)),
+        #171a21;
+    border: 1px solid #2c3342;
+    border-radius: 10px;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, .22);
     display: flex;
     gap: 1rem;
     justify-content: space-between;
+    padding: 1.45rem;
 }
 
 .reports-heading {
@@ -17,24 +24,25 @@
 
 .eyebrow,
 .section-kicker {
-    color: #64748b;
+    color: #929eff;
     font-size: .78rem;
-    font-weight: 700;
+    font-weight: 800;
     letter-spacing: .08em;
     margin: 0 0 .35rem;
     text-transform: uppercase;
 }
 
 .reports-heading h1 {
-    color: #0f172a;
-    font-size: clamp(2rem, 4vw, 3.35rem);
-    font-weight: 800;
+    color: #f2f5fb;
+    font-size: clamp(2.15rem, 4vw, 3.35rem);
+    font-weight: 850;
     line-height: 1;
     margin: 0;
 }
 
 .reports-heading p:last-child {
-    color: #475569;
+    color: #a9b3c7;
+    line-height: 1.6;
     margin: .75rem 0 0;
     max-width: 720px;
 }
@@ -49,30 +57,37 @@
 
 .estimate-badge,
 .detail-link {
-    border-radius: 999px;
+    border-radius: 8px;
     font-size: .88rem;
-    font-weight: 700;
-    padding: .55rem .8rem;
+    font-weight: 800;
+    padding: .65rem .9rem;
     text-decoration: none;
 }
 
 .estimate-badge {
-    background: #fff7ed;
-    color: #9a3412;
+    background: rgba(201, 154, 36, .14);
+    border: 1px solid rgba(201, 154, 36, .36);
+    color: #f0ca63;
 }
 
 .detail-link {
-    background: #0f172a;
+    background: #6d7cff;
+    border: 1px solid #7f8cff;
+    color: #fff;
+}
+
+.detail-link:hover {
+    background: #5f6ff2;
     color: #fff;
 }
 
 .empty-state,
 .report-panel,
 .kpi-card {
-    background: rgba(255, 255, 255, .92);
-    border: 1px solid #e2e8f0;
+    background: rgba(23, 26, 33, .92);
+    border: 1px solid #2c3342;
     border-radius: 8px;
-    box-shadow: 0 18px 50px rgba(15, 23, 42, .06);
+    box-shadow: 0 18px 55px rgba(0, 0, 0, .22);
 }
 
 .empty-state {
@@ -84,9 +99,10 @@
 
 .empty-icon {
     align-items: center;
-    background: #eff6ff;
+    background: rgba(109, 124, 255, .16);
+    border: 1px solid rgba(109, 124, 255, .34);
     border-radius: 50%;
-    color: #1d4ed8;
+    color: #cdd4ff;
     display: inline-flex;
     flex: 0 0 auto;
     font-weight: 800;
@@ -96,12 +112,13 @@
 }
 
 .empty-state h2 {
+    color: #f2f5fb;
     font-size: 1rem;
     margin: 0 0 .25rem;
 }
 
 .empty-state p {
-    color: #64748b;
+    color: #a9b3c7;
     margin: 0;
 }
 
@@ -113,12 +130,12 @@
 
 .kpi-card {
     min-width: 0;
-    padding: 1rem;
+    padding: 1.05rem;
 }
 
 .kpi-card span,
 .kpi-card small {
-    color: #64748b;
+    color: #a9b3c7;
     display: block;
 }
 
@@ -128,7 +145,7 @@
 }
 
 .kpi-card strong {
-    color: #0f172a;
+    color: #f2f5fb;
     display: block;
     font-size: 1.75rem;
     line-height: 1.1;
@@ -148,7 +165,7 @@
 
 .report-panel {
     min-width: 0;
-    padding: 1rem;
+    padding: 1.1rem;
 }
 
 .panel-heading {
@@ -160,13 +177,13 @@
 }
 
 .panel-heading h2 {
-    color: #0f172a;
+    color: #f2f5fb;
     font-size: 1.1rem;
     margin: 0;
 }
 
 .panel-heading span {
-    color: #64748b;
+    color: #a9b3c7;
     flex: 0 0 auto;
     font-size: .85rem;
     font-weight: 700;
@@ -194,7 +211,7 @@
 
 .bar {
     align-self: end;
-    background: linear-gradient(180deg, #2563eb, #14b8a6);
+    background: linear-gradient(180deg, #6d7cff, #28b46b);
     border-radius: 5px 5px 0 0;
     display: block;
     min-height: 6px;
@@ -202,7 +219,7 @@
 }
 
 .chart-day small {
-    color: #64748b;
+    color: #a9b3c7;
     font-size: .68rem;
     text-align: center;
     white-space: nowrap;
@@ -210,7 +227,7 @@
 
 .chart-empty {
     align-self: center;
-    color: #64748b;
+    color: #a9b3c7;
     grid-column: 1 / -1;
     justify-self: center;
 }
@@ -235,19 +252,35 @@
 
 .breakdown-row strong,
 .breakdown-row b {
-    color: #0f172a;
+    color: #f2f5fb;
     overflow-wrap: anywhere;
 }
 
 .breakdown-row span {
-    color: #64748b;
+    color: #a9b3c7;
     flex: 0 0 auto;
 }
 
 .breakdown-row progress {
     accent-color: #2563eb;
+    background: #101216;
+    border: 1px solid #2c3342;
+    border-radius: 999px;
     height: .65rem;
+    overflow: hidden;
     width: 100%;
+}
+
+.breakdown-row progress::-webkit-progress-bar {
+    background: #101216;
+}
+
+.breakdown-row progress::-webkit-progress-value {
+    background: linear-gradient(90deg, #6d7cff, #28b46b);
+}
+
+.breakdown-row progress::-moz-progress-bar {
+    background: linear-gradient(90deg, #6d7cff, #28b46b);
 }
 
 @media (max-width: 900px) {
