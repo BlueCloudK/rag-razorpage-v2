@@ -24,9 +24,10 @@ public class UsageModel : PageModel
 
     public UsageReportDto Report { get; private set; } = new();
 
-    public async Task OnGetAsync()
+    public Task<IActionResult> OnGetAsync()
     {
-        await LoadReportAsync();
+        Days = AllowedDayRanges.Contains(Days) ? Days : 30;
+        return Task.FromResult<IActionResult>(RedirectToPage("/Reports/Index", new { Days }));
     }
 
     public async Task<IActionResult> OnGetExportCsvAsync()

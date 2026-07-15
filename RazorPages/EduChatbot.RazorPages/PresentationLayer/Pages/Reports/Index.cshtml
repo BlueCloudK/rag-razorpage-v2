@@ -1,137 +1,171 @@
 @page
 @model PresentationLayer.Pages.Reports.IndexModel
 @{
-    ViewData["Title"] = "Reports";
+    ViewData["Title"] = "Usage report";
+    var isOrganizationScope = Model.Report.ScopeKind == "organization";
     var totalTokens = Math.Max(Model.Report.TotalTokens, 1);
     var inputPercent = Math.Round((double)Model.Report.TotalInputTokens / totalTokens * 100, 1);
     var contextPercent = Math.Round((double)Model.Report.TotalRetrievedContextTokens / totalTokens * 100, 1);
     var outputPercent = Math.Round((double)Model.Report.TotalOutputTokens / totalTokens * 100, 1);
-    var isTeachingScope = Model.Report.ScopeKind == "teaching";
 }
 
-<section class="reports-page">
-    <header class="reports-header">
-        <div class="reports-heading">
-            <a class="reports-back" asp-page="/Index"><i class="bi bi-arrow-left"></i> Back to workspace</a>
-            <div class="reports-title-row">
-                <div>
-                    <p class="eyebrow">Reports and statistics</p>
-                    <h1>@Model.Report.ScopeLabel</h1>
-                </div>
-                <span class="scope-badge">@(isTeachingScope ? "Lecturer scope" : "Organization scope")</span>
+<section class="usage-report" aria-labelledby="report-title">
+    <header class="report-toolbar">
+        <div class="report-title">
+            <a class="back-link" asp-page="/Index"><i class="bi bi-arrow-left"></i><span>Workspace</span></a>
+            <div>
+                <p class="report-kicker">@Model.Report.ScopeLabel</p>
+                <h1 id="report-title">Usage report</h1>
+                <p>@Model.Report.ScopeDescription</p>
             </div>
-            <p>@Model.Report.ScopeDescription Privacy-safe totals only: prompts, answers, and document text are never shown here.</p>
         </div>
-        <div class="reports-actions">
+        <div class="report-actions">
             @if (Model.Report.TokensAreEstimated)
             {
-                <span class="estimate-badge">Token values are estimated</span>
+                <span class="report-badge"><i class="bi bi-info-circle"></i> Estimated tokens</span>
             }
-            <a class="detail-link" asp-page="/Reports/Usage">View detailed usage</a>
+            <a class="export-report" asp-page="/Reports/Usage" asp-page-handler="ExportCsv" asp-route-days="@Model.Days"><i class="bi bi-download"></i> Export CSV</a>
         </div>
     </header>
 
-    <div class="kpi-grid" aria-label="Usage summary">
-        <article class="kpi-card">
+    <section class="report-period" aria-label="Reporting period">
+        <div class="period-copy">
+            <span>Reporting period</span>
+            <strong>@Model.Report.StartDate.ToString("dd MMM yyyy") - @Model.Report.EndDate.ToString("dd MMM yyyy")</strong>
+        </div>
+        <nav class="period-tabs" aria-label="Select reporting period">
+            @foreach (var days in new[] { 7, 30, 90 })
+            {
+                <a class="@(Model.Days == days ? "active" : null)" asp-page="/Reports/Index" asp-route-days="@days" aria-current="@(Model.Days == days ? "page" : null)">@days days</a>
+            }
+        </nav>
+    </section>
+
+    <section class="report-metrics" aria-label="Usage summary">
+        <article>
             <span>Total tokens</span>
             <strong>@Model.Report.TotalTokens.ToString("N0")</strong>
-            <small>Input, retrieved context, and AI answer tokens</small>
+            <small>Input, context, and answer output</small>
         </article>
-        <article class="kpi-card">
+        <article>
             <span>Completed questions</span>
             <strong>@Model.Report.CompletedQuestionCount.ToString("N0")</strong>
-            <small>Completed AI answers in the last 30 days</small>
+            <small>Successful AI responses in this period</small>
         </article>
-        <article class="kpi-card">
-            <span>@(isTeachingScope ? "Active learners" : "Active users")</span>
+        <article>
+            <span>@(isOrganizationScope ? "Active users" : "Active learners")</span>
             <strong>@Model.Report.ActiveUserCount.ToString("N0")</strong>
-            <small>@(isTeachingScope ? "Learners active across your teaching subjects" : "Users with completed answers in scope")</small>
+            <small>@(isOrganizationScope ? "Users with reportable activity" : "Aggregated activity in your subjects")</small>
         </article>
-        <article class="kpi-card">
-            <span>@(isTeachingScope ? "Teaching subjects" : "Indexed documents")</span>
-            <strong>@(isTeachingScope ? Model.Report.AccessibleSubjectCount.ToString("N0") : Model.Report.IndexedDocumentCount.ToString("N0"))</strong>
-            <small>@(isTeachingScope ? "Subjects where you are lecturer or subject lead" : "Indexed documents connected to active subjects")</small>
+        <article>
+            <span>@(isOrganizationScope ? "Indexed documents" : "Teaching subjects")</span>
+            <strong>@(isOrganizationScope ? Model.Report.IndexedDocumentCount.ToString("N0") : Model.Report.AccessibleSubjectCount.ToString("N0"))</strong>
+            <small>@(isOrganizationScope ? "Available across the organization" : "Subjects assigned to you")</small>
         </article>
-    </div>
+    </section>
 
     @if (!Model.HasUsage)
     {
-        <section class="report-empty-panel" role="status">
-            <div class="empty-icon" aria-hidden="true">0</div>
+        <section class="report-zero" role="status">
+            <i class="bi bi-bar-chart-line" aria-hidden="true"></i>
             <div>
-                <p class="section-kicker">Tracking status</p>
-                <h2>No completed AI answers tracked yet</h2>
-                <p>Token tracking starts when an AI answer completes successfully in your scope. Historical chat messages are intentionally not backfilled.</p>
+                <h2>No AI activity has been recorded yet</h2>
+                <p>Usage is written after a successful document-grounded answer. Existing chat history is not backfilled into token records.</p>
             </div>
-            <a class="detail-link secondary-action" asp-page="/Subjects/Index">Open subjects</a>
         </section>
     }
     else
     {
-    <div class="report-layout">
-        <section class="report-panel chart-panel" aria-labelledby="daily-tokens-heading">
-            <div class="panel-heading">
-                <div>
-                    <p class="section-kicker">Last 30 days</p>
-                    <h2 id="daily-tokens-heading">Daily token usage</h2>
+        <section class="report-main-grid">
+            <article class="report-surface activity-surface">
+                <div class="surface-heading">
+                    <div>
+                        <span>Activity trend</span>
+                        <h2>Daily token usage</h2>
+                    </div>
+                    <strong>@Model.Report.DailyUsages.Count days active</strong>
                 </div>
-                <span>@Model.Report.StartDate.ToString("dd MMM") - @Model.Report.EndDate.ToString("dd MMM")</span>
-            </div>
-
-            <div class="token-chart" aria-label="Daily token totals">
-                @if (Model.Report.DailyUsages.Count == 0)
-                {
-                    <div class="chart-empty">No completed AI answers in this period.</div>
-                }
-                else
-                {
+                <div class="usage-bars" aria-label="Daily token usage">
                     @foreach (var day in Model.Report.DailyUsages)
                     {
-                        var height = Math.Max(6, Math.Round((double)day.TotalTokens / Model.MaxDailyTokens * 100));
-                        <div class="chart-day">
-                            <span class="bar" style="height:@height%" title="@day.Date.ToString("dd MMM yyyy"): @day.TotalTokens.ToString("N0") tokens"></span>
+                        var height = Math.Max(8, Math.Round((double)day.TotalTokens / Model.MaxDailyTokens * 100));
+                        <div class="usage-bar">
+                            <span style="height:@height%" title="@day.Date.ToString("dd MMM yyyy"): @day.TotalTokens.ToString("N0") tokens"></span>
                             <small>@day.Date.ToString("dd/MM")</small>
                         </div>
                     }
+                </div>
+            </article>
+
+            <article class="report-surface token-surface">
+                <div class="surface-heading">
+                    <div>
+                        <span>Token composition</span>
+                        <h2>Where usage comes from</h2>
+                    </div>
+                </div>
+                <div class="token-list">
+                    <div><div><strong>Question input</strong><span>@inputPercent%</span></div><progress value="@Model.Report.TotalInputTokens" max="@totalTokens"></progress><b>@Model.Report.TotalInputTokens.ToString("N0")</b></div>
+                    <div><div><strong>Retrieved context</strong><span>@contextPercent%</span></div><progress value="@Model.Report.TotalRetrievedContextTokens" max="@totalTokens"></progress><b>@Model.Report.TotalRetrievedContextTokens.ToString("N0")</b></div>
+                    <div><div><strong>AI answer</strong><span>@outputPercent%</span></div><progress value="@Model.Report.TotalOutputTokens" max="@totalTokens"></progress><b>@Model.Report.TotalOutputTokens.ToString("N0")</b></div>
+                </div>
+            </article>
+        </section>
+    }
+
+    <section class="report-surface table-surface" aria-labelledby="subject-report-heading">
+        <div class="surface-heading">
+            <div>
+                <span>@(isOrganizationScope ? "Organization subjects" : "My teaching subjects")</span>
+                <h2 id="subject-report-heading">Activity by subject</h2>
+            </div>
+            <strong>@Model.Report.SubjectUsages.Count subjects</strong>
+        </div>
+        <div class="report-table-wrap">
+            <table class="report-table">
+                <thead><tr><th>Subject</th><th class="numeric">Questions</th><th class="numeric">Tokens</th><th class="numeric">Indexed documents</th></tr></thead>
+                <tbody>
+                @if (Model.Report.SubjectUsages.Count == 0)
+                {
+                    <tr><td colspan="4" class="empty-cell">No subject activity in this period.</td></tr>
                 }
+                else
+                {
+                    @foreach (var subject in Model.Report.SubjectUsages)
+                    {
+                        <tr><td><strong>@subject.SubjectName</strong><span>@subject.SubjectCode</span></td><td class="numeric">@subject.QuestionCount.ToString("N0")</td><td class="numeric">@subject.TotalTokens.ToString("N0")</td><td class="numeric">@subject.IndexedDocumentCount.ToString("N0")</td></tr>
+                    }
+                }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    @if (isOrganizationScope)
+    {
+        <section class="report-surface table-surface" aria-labelledby="user-report-heading">
+            <div class="surface-heading">
+                <div><span>Organization users</span><h2 id="user-report-heading">Usage by user</h2></div>
+                <strong>@Model.Report.UserUsages.Count users</strong>
+            </div>
+            <div class="report-table-wrap">
+                <table class="report-table">
+                    <thead><tr><th>User</th><th>Role</th><th class="numeric">Questions</th><th class="numeric">Tokens</th></tr></thead>
+                    <tbody>
+                    @if (Model.Report.UserUsages.Count == 0)
+                    {
+                        <tr><td colspan="4" class="empty-cell">No user activity in this period.</td></tr>
+                    }
+                    else
+                    {
+                        @foreach (var user in Model.Report.UserUsages)
+                        {
+                            <tr><td><strong>@user.UserName</strong><span>@user.Email</span></td><td><span class="role-label">@user.SystemRole</span></td><td class="numeric">@user.QuestionCount.ToString("N0")</td><td class="numeric">@user.TotalTokens.ToString("N0")</td></tr>
+                        }
+                    }
+                    </tbody>
+                </table>
             </div>
         </section>
-
-        <section class="report-panel breakdown-panel" aria-labelledby="breakdown-heading">
-            <div class="panel-heading">
-                <div>
-                    <p class="section-kicker">Token mix</p>
-                    <h2 id="breakdown-heading">Token breakdown</h2>
-                </div>
-            </div>
-
-            <div class="breakdown-list">
-                <div class="breakdown-row">
-                    <div>
-                        <strong>Question input</strong>
-                        <span>@inputPercent%</span>
-                    </div>
-                    <progress value="@Model.Report.TotalInputTokens" max="@totalTokens"></progress>
-                    <b>@Model.Report.TotalInputTokens.ToString("N0")</b>
-                </div>
-                <div class="breakdown-row">
-                    <div>
-                        <strong>Retrieved context</strong>
-                        <span>@contextPercent%</span>
-                    </div>
-                    <progress value="@Model.Report.TotalRetrievedContextTokens" max="@totalTokens"></progress>
-                    <b>@Model.Report.TotalRetrievedContextTokens.ToString("N0")</b>
-                </div>
-                <div class="breakdown-row">
-                    <div>
-                        <strong>AI answer</strong>
-                        <span>@outputPercent%</span>
-                    </div>
-                    <progress value="@Model.Report.TotalOutputTokens" max="@totalTokens"></progress>
-                    <b>@Model.Report.TotalOutputTokens.ToString("N0")</b>
-                </div>
-            </div>
-        </section>
-    </div>
     }
 </section>

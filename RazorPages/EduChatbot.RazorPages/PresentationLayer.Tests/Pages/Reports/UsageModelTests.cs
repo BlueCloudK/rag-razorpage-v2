@@ -9,32 +9,32 @@ namespace PresentationLayer.Tests.Pages.Reports;
 public class UsageModelTests
 {
     [Fact]
-    public async Task OnGetAsync_UsesSelectedSevenDayRangeAndReturnsReport()
+    public async Task OnGetAsync_RedirectsToTheUnifiedReportScreen()
     {
         var expected = CreateReport();
         var service = new RecordingUsageReportService(expected);
         var model = new UsageModel(service) { Days = 7 };
 
-        await model.OnGetAsync();
+        var result = Assert.IsType<RedirectToPageResult>(await model.OnGetAsync());
 
         Assert.Equal(7, model.Days);
-        Assert.Same(expected, model.Report);
-        Assert.Equal(service.EndDate.Date.AddDays(-6), service.StartDate.Date);
+        Assert.Equal("/Reports/Index", result.PageName);
+        Assert.Empty(model.Report.UserUsages);
     }
 
     [Theory]
     [InlineData(0)]
     [InlineData(8)]
     [InlineData(365)]
-    public async Task OnGetAsync_InvalidRangeFallsBackToThirtyDays(int days)
+    public async Task OnGetAsync_InvalidRangeFallsBackToThirtyDaysBeforeRedirecting(int days)
     {
         var service = new RecordingUsageReportService(CreateReport());
         var model = new UsageModel(service) { Days = days };
 
-        await model.OnGetAsync();
+        var result = Assert.IsType<RedirectToPageResult>(await model.OnGetAsync());
 
         Assert.Equal(30, model.Days);
-        Assert.Equal(service.EndDate.Date.AddDays(-29), service.StartDate.Date);
+        Assert.Equal("/Reports/Index", result.PageName);
     }
 
     [Fact]
