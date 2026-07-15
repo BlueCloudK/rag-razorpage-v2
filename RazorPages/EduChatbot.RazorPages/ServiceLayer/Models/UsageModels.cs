@@ -19,6 +19,8 @@ namespace ServiceLayer.Models
 
     public class UsageReportDto
     {
+        public string ScopeLabel { get; set; } = string.Empty;
+        public string ScopeDescription { get; set; } = string.Empty;
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public int TotalInputTokens { get; set; }

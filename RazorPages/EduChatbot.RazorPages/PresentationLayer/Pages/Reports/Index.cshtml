@@ -12,29 +12,30 @@
     <header class="reports-hero">
         <div class="reports-heading">
             <p class="eyebrow">Reports and statistics</p>
-            <h1>Operational reports</h1>
-            <p>Privacy-safe activity totals for completed AI answers, estimated token usage, active users, and indexed documents.</p>
+            <h1>@Model.Report.ScopeLabel</h1>
+            <p>@Model.Report.ScopeDescription Token totals only include completed answers and never expose prompts, answers, or document text.</p>
         </div>
         <div class="reports-actions">
             @if (Model.Report.TokensAreEstimated)
             {
                 <span class="estimate-badge">Token values are estimated</span>
             }
-            <a class="detail-link" asp-page="/Reports/Usage">Detailed usage</a>
+            <a class="detail-link" asp-page="/Reports/Usage">View detailed usage</a>
         </div>
     </header>
 
     @if (!Model.HasUsage)
     {
         <div class="empty-state" role="status">
-            <span class="empty-icon" aria-hidden="true">0</span>
+            <span class="empty-icon" aria-hidden="true">i</span>
             <div>
-                <h2>No report data yet</h2>
-                <p>Tracking begins after new AI answers complete successfully. This page shows aggregate counts only and does not display chat content.</p>
+                <h2>No completed answers tracked yet</h2>
+                <p>Usage tracking begins with new successful AI answers. Ask a question about an indexed document, then refresh this page. Historical chat messages are not backfilled as token records.</p>
             </div>
         </div>
     }
-
+    else
+    {
     <div class="kpi-grid" aria-label="Usage summary">
         <article class="kpi-card">
             <span>Total tokens</span>
@@ -123,4 +124,5 @@
             </div>
         </section>
     </div>
+    }
 </section>

@@ -45,8 +45,6 @@
         .workspace-tab { color: #9aa0a6; text-decoration: none; border: 1px solid #2a2a2e; background: #1a1a1e; border-radius: 8px; padding: 8px 10px; font-size: 0.76rem; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s; }
         .workspace-tab:hover { color: #ffffff; border-color: #667eea; background: rgba(102,126,234,0.12); }
         .workspace-tab.active { color: #ffffff; background: #24315a; border-color: #3c4f91; }
-        .workspace-reports-link { color: #aab4da; text-decoration: none; font-size: 0.76rem; display: inline-flex; align-items: center; gap: 7px; margin: 0 2px 14px; padding: 7px 8px; border-radius: 6px; }
-        .workspace-reports-link:hover { color: #ffffff; background: #1a1f31; }
         
         .sb-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
         .workspace-summary { border-bottom: 1px solid #1e1e22; color: #9aa0a6; display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 16px; padding: 0 2px 14px; font-size: 0.73rem; line-height: 1.4; }
@@ -457,7 +455,6 @@
                 <a class="workspace-tab @(activeTab == "settings" ? "active" : "")" asp-page="/Chat/Index" asp-route-subjectId="@subjectId" asp-route-tab="settings"><i class="bi bi-gear"></i> Settings</a>
             }
         </nav>
-        <a class="workspace-reports-link" href="/Reports"><i class="bi bi-bar-chart-line"></i> Reports and statistics</a>
         
         <div class="sb-body">
             @if (Model.CurrentSession != null)

@@ -94,6 +94,12 @@ namespace ServiceLayer.Services
 
             var report = new UsageReportDto
             {
+                ScopeLabel = isAdmin ? "Organization usage" : isLecturer ? "Teaching analytics" : "My learning usage",
+                ScopeDescription = isAdmin
+                    ? "Privacy-safe usage totals across your active organization."
+                    : isLecturer
+                        ? "Usage totals for subjects where you are a lecturer or subject lead."
+                        : "Only your own completed AI answers are included.",
                 StartDate = startDate,
                 EndDate = endDate,
                 TotalInputTokens = usages.Sum(u => u.InputTokens),

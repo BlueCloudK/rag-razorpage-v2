@@ -87,6 +87,9 @@
         .status-list { display: grid; gap: 10px; }
         .status-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #a9b0bf; font-size: .75rem; }
         .status-line strong { color: #f0f2f7; }
+        .reports-entry { display: grid; gap: 11px; }
+        .reports-entry h2 { color: #eef1f7; font-size: 1rem; font-weight: 800; margin: 0; }
+        .reports-entry p { color: #9ca5b5; font-size: .77rem; line-height: 1.5; margin: 0; }
         .modal-content { color: #edf0f5; border: 1px solid #303038; border-radius: 10px; background: #1a1a1e; }
         .modal-header, .modal-footer { border-color: #303038; }
         .dark-input { color: #eef1f7; border: 1px solid #303038; border-radius: 8px; background: #101012; padding: 11px 12px; }
@@ -224,6 +227,12 @@
         </div>
 
         <aside class="side-stack">
+            <section class="panel side-panel reports-entry">
+                <div class="eyebrow">Reports and statistics</div>
+                <h2>Usage &amp; reports</h2>
+                <p>Review privacy-safe AI usage, token totals, and subject activity for the scope available to your role.</p>
+                <a class="btn-ui primary" asp-page="/Reports/Index"><i class="bi bi-bar-chart-line"></i> Open reports</a>
+            </section>
             <section class="panel side-panel">
                 <div class="eyebrow">Organization plan</div>
                 <div class="plan-head">
