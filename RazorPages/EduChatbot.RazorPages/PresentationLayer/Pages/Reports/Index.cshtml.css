@@ -17,6 +17,18 @@
     min-width: 0;
 }
 
+.reports-back {
+    align-items: center;
+    color: #a9b3c7;
+    display: inline-flex;
+    font-size: .82rem;
+    font-weight: 750;
+    gap: .45rem;
+    margin-bottom: .8rem;
+}
+
+.reports-back:hover { color: #f2f5fb; }
+
 .eyebrow,
 .section-kicker {
     color: #929eff;

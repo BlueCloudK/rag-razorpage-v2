@@ -186,6 +186,80 @@ button, input, textarea { font: inherit; }
   color: var(--muted);
 }
 
+.workspace-topbar {
+  align-items: center;
+  background: #121214;
+  border-bottom: 1px solid #25252b;
+  display: flex;
+  height: 64px;
+  justify-content: space-between;
+  padding: 0 28px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.workspace-brand {
+  align-items: center;
+  color: #f8f9fc;
+  display: inline-flex;
+  font-size: 1.05rem;
+  font-weight: 800;
+  gap: 10px;
+}
+
+.workspace-brand-icon {
+  align-items: center;
+  background: linear-gradient(135deg, #6875f5, #8755b9);
+  border-radius: 9px;
+  color: #fff;
+  display: inline-flex;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
+.workspace-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.workspace-account {
+  align-items: center;
+  background: #19191d;
+  border: 1px solid #303038;
+  border-radius: 999px;
+  color: #c6ccda;
+  display: inline-flex;
+  font-size: .8rem;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 11px;
+}
+
+.workspace-account strong { color: #f0f3f8; }
+.workspace-account span { color: #9ba6ff; font-weight: 800; }
+
+.workspace-button {
+  align-items: center;
+  background: #19191d;
+  border: 1px solid #303038;
+  border-radius: 8px;
+  color: #d7dce7;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: .78rem;
+  font-weight: 800;
+  gap: 7px;
+  min-height: 36px;
+  padding: 8px 11px;
+}
+
+.workspace-button:hover { background: rgba(102,117,238,.12); border-color: #6675ee; color: #fff; }
+.workspace-button.danger { background: #24191c; border-color: #4a2b31; color: #ff96a2; }
+
 .admin-topbar {
   align-items: center;
   background: #131315;
@@ -1288,6 +1362,8 @@ h1, h2 { margin: 0; }
   .topbar { align-items: flex-start; flex-direction: column; }
   .app-shell { padding: 22px 14px 42px; }
   .app-nav-inner { padding: 0 14px; }
+  .workspace-topbar { height: auto; padding: 12px 16px; align-items: flex-start; gap: 12px; flex-direction: column; }
+  .workspace-actions { width: 100%; }
   .app-links { align-items: stretch; padding: 12px 0; }
   .app-links .nav-link, .logout-link { justify-content: center; width: 100%; }
   .nav-account { justify-content: center; margin: 4px 0; }

@@ -29,17 +29,17 @@
         * { box-sizing: border-box; }
         body { margin: 0; min-height: 100vh; background: #101012; color: #eef1f7; font-family: "Inter", sans-serif; }
         a { color: inherit; text-decoration: none; }
-        .topbar { height: 64px; padding: 0 28px; border-bottom: 1px solid #25252b; display: flex; align-items: center; justify-content: space-between; background: #121214; position: sticky; top: 0; z-index: 10; }
-        .brand { color: #f8f9fc; display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.05rem; }
-        .brand-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; color: #fff; background: linear-gradient(135deg, #6875f5, #8755b9); }
-        .top-actions, .header-actions, .course-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .account { display: inline-flex; align-items: center; gap: 8px; color: #c6ccda; font-size: .8rem; border: 1px solid #303038; border-radius: 999px; padding: 8px 11px; background: #19191d; }
-        .account strong { color: #f0f3f8; }
-        .role { color: #9ba6ff; font-weight: 800; }
-        .btn-ui { min-height: 36px; border: 1px solid #303038; border-radius: 8px; background: #19191d; color: #d7dce7; padding: 8px 11px; display: inline-flex; align-items: center; gap: 7px; font-size: .78rem; font-weight: 800; cursor: pointer; }
-        .btn-ui:hover { color: #fff; border-color: #6675ee; background: rgba(102,117,238,.12); }
+        .workspace-topbar { height: 64px; padding: 0 28px; border-bottom: 1px solid #25252b; display: flex; align-items: center; justify-content: space-between; background: #121214; position: sticky; top: 0; z-index: 10; }
+        .workspace-brand { color: #f8f9fc; display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.05rem; }
+        .workspace-brand-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; color: #fff; background: linear-gradient(135deg, #6875f5, #8755b9); }
+        .workspace-actions, .header-actions, .course-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .workspace-account { display: inline-flex; align-items: center; gap: 8px; color: #c6ccda; font-size: .8rem; border: 1px solid #303038; border-radius: 999px; padding: 8px 11px; background: #19191d; }
+        .workspace-account strong { color: #f0f3f8; }
+        .workspace-account span { color: #9ba6ff; font-weight: 800; }
+        .workspace-button, .btn-ui { min-height: 36px; border: 1px solid #303038; border-radius: 8px; background: #19191d; color: #d7dce7; padding: 8px 11px; display: inline-flex; align-items: center; gap: 7px; font-size: .78rem; font-weight: 800; cursor: pointer; }
+        .workspace-button:hover, .btn-ui:hover { color: #fff; border-color: #6675ee; background: rgba(102,117,238,.12); }
         .btn-ui.primary { color: #fff; border-color: #6070e8; background: #5262d6; }
-        .btn-ui.danger { color: #ff96a2; border-color: #4a2b31; background: #24191c; }
+        .workspace-button.danger, .btn-ui.danger { color: #ff96a2; border-color: #4a2b31; background: #24191c; }
         .btn-icon { width: 34px; height: 34px; justify-content: center; padding: 0; }
         .shell { max-width: 1360px; margin: 0 auto; padding: 34px 28px 56px; }
         .workspace-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
@@ -118,23 +118,7 @@
     </style>
 </head>
 <body>
-<header class="topbar">
-    <a class="brand" asp-page="/Index">
-        <span class="brand-icon"><i class="bi bi-mortarboard-fill"></i></span>
-        EduChatbot
-    </a>
-    <div class="top-actions">
-        <span class="account"><i class="bi bi-person-circle"></i><strong>@Model.DisplayName</strong><span class="role">@Model.PrimaryRole</span></span>
-        @if (Model.IsAdmin)
-        {
-            <a class="btn-ui" asp-page="/Admin/Users"><i class="bi bi-sliders"></i> Admin</a>
-            <a class="btn-ui" asp-page="/Admin/Activity"><i class="bi bi-activity"></i> Logs</a>
-        }
-        <form method="post" asp-page="/Account/Logout" class="m-0">
-            <button class="btn-ui danger" type="submit"><i class="bi bi-box-arrow-right"></i> Logout</button>
-        </form>
-    </div>
-</header>
+<partial name="_WorkspaceTopbar" />
 
 <main class="shell">
     <section class="workspace-header">
