@@ -251,6 +251,36 @@ namespace ServiceLayer.Services
                     CREATE INDEX [IX_TokenUsages_SubjectId_Timestamp] ON [TokenUsages] ([SubjectId], [Timestamp]);
                     CREATE INDEX [IX_TokenUsages_ChatSessionId] ON [TokenUsages] ([ChatSessionId]);
                 END;
+
+                -- A pre-team report prototype used legacy column names. Upgrade that
+                -- table in place so existing local usage data is preserved.
+                IF OBJECT_ID(N'[TokenUsages]', N'U') IS NOT NULL
+                BEGIN
+                    IF COL_LENGTH('TokenUsages', 'SessionId') IS NOT NULL
+                       AND COL_LENGTH('TokenUsages', 'ChatSessionId') IS NULL
+                        EXEC sp_rename N'dbo.TokenUsages.SessionId', N'ChatSessionId', N'COLUMN';
+
+                    IF COL_LENGTH('TokenUsages', 'ContextTokens') IS NOT NULL
+                       AND COL_LENGTH('TokenUsages', 'RetrievedContextTokens') IS NULL
+                        EXEC sp_rename N'dbo.TokenUsages.ContextTokens', N'RetrievedContextTokens', N'COLUMN';
+
+                    IF COL_LENGTH('TokenUsages', 'Model') IS NOT NULL
+                       AND COL_LENGTH('TokenUsages', 'ModelName') IS NULL
+                        EXEC sp_rename N'dbo.TokenUsages.Model', N'ModelName', N'COLUMN';
+
+                    IF COL_LENGTH('TokenUsages', 'CreatedAt') IS NOT NULL
+                       AND COL_LENGTH('TokenUsages', 'Timestamp') IS NULL
+                        EXEC sp_rename N'dbo.TokenUsages.CreatedAt', N'Timestamp', N'COLUMN';
+
+                    IF COL_LENGTH('TokenUsages', 'ChatSessionId') IS NULL
+                        ALTER TABLE [TokenUsages] ADD [ChatSessionId] int NULL;
+                    IF COL_LENGTH('TokenUsages', 'RetrievedContextTokens') IS NULL
+                        ALTER TABLE [TokenUsages] ADD [RetrievedContextTokens] int NOT NULL CONSTRAINT [DF_TokenUsages_RetrievedContextTokens] DEFAULT 0;
+                    IF COL_LENGTH('TokenUsages', 'ModelName') IS NULL
+                        ALTER TABLE [TokenUsages] ADD [ModelName] nvarchar(max) NOT NULL CONSTRAINT [DF_TokenUsages_ModelName] DEFAULT N'local-rag';
+                    IF COL_LENGTH('TokenUsages', 'Timestamp') IS NULL
+                        ALTER TABLE [TokenUsages] ADD [Timestamp] datetime2 NOT NULL CONSTRAINT [DF_TokenUsages_Timestamp] DEFAULT SYSUTCDATETIME();
+                END;
             """);
         }
 
