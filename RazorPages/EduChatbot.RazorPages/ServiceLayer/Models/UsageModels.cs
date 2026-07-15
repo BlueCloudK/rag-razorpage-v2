@@ -19,6 +19,8 @@ namespace ServiceLayer.Models
 
     public class UsageReportDto
     {
+        // "organization" is the administrator view; "teaching" is the lecturer view.
+        public string ScopeKind { get; set; } = string.Empty;
         public string ScopeLabel { get; set; } = string.Empty;
         public string ScopeDescription { get; set; } = string.Empty;
         public DateTime StartDate { get; set; }
@@ -30,6 +32,7 @@ namespace ServiceLayer.Models
         public int QuestionCount { get; set; }
         public int CompletedQuestionCount { get; set; }
         public int ActiveUserCount { get; set; }
+        public int AccessibleSubjectCount { get; set; }
         public int IndexedDocumentCount { get; set; }
         public bool TokensAreEstimated { get; set; }
 

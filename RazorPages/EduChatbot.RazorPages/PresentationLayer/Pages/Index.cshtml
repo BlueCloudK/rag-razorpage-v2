@@ -227,12 +227,15 @@
         </div>
 
         <aside class="side-stack">
+            @if (Model.IsAdmin || Model.IsLecturer)
+            {
             <section class="panel side-panel reports-entry">
                 <div class="eyebrow">Reports and statistics</div>
                 <h2>Usage &amp; reports</h2>
                 <p>Review privacy-safe AI usage, token totals, and subject activity for the scope available to your role.</p>
                 <a class="btn-ui primary" asp-page="/Reports/Index"><i class="bi bi-bar-chart-line"></i> Open reports</a>
             </section>
+            }
             <section class="panel side-panel">
                 <div class="eyebrow">Organization plan</div>
                 <div class="plan-head">

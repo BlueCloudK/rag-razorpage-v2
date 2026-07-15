@@ -58,6 +58,7 @@ public class UsageModelTests
     {
         return new UsageReportDto
         {
+            ScopeKind = "organization",
             UserUsages =
             {
                 new UserTokenUsageDto

@@ -6,6 +6,7 @@
     var inputPercent = Math.Round((double)Model.Report.TotalInputTokens / totalTokens * 100, 1);
     var contextPercent = Math.Round((double)Model.Report.TotalRetrievedContextTokens / totalTokens * 100, 1);
     var outputPercent = Math.Round((double)Model.Report.TotalOutputTokens / totalTokens * 100, 1);
+    var isTeachingScope = Model.Report.ScopeKind == "teaching";
 }
 
 <section class="reports-page">
@@ -48,14 +49,14 @@
             <small>Completed AI answers in the last 30 days</small>
         </article>
         <article class="kpi-card">
-            <span>Active users</span>
+            <span>@(isTeachingScope ? "Active learners" : "Active users")</span>
             <strong>@Model.Report.ActiveUserCount.ToString("N0")</strong>
-            <small>Users with completed answers in scope</small>
+            <small>@(isTeachingScope ? "Learners active across your teaching subjects" : "Users with completed answers in scope")</small>
         </article>
         <article class="kpi-card">
-            <span>Indexed documents</span>
-            <strong>@Model.Report.IndexedDocumentCount.ToString("N0")</strong>
-            <small>Indexed documents connected to active subjects</small>
+            <span>@(isTeachingScope ? "Teaching subjects" : "Indexed documents")</span>
+            <strong>@(isTeachingScope ? Model.Report.AccessibleSubjectCount.ToString("N0") : Model.Report.IndexedDocumentCount.ToString("N0"))</strong>
+            <small>@(isTeachingScope ? "Subjects where you are lecturer or subject lead" : "Indexed documents connected to active subjects")</small>
         </article>
     </div>
 

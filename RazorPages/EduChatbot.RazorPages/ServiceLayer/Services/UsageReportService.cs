@@ -33,6 +33,22 @@ namespace ServiceLayer.Services
                 .Select(m => (int?)m.OrganizationId)
                 .FirstOrDefaultAsync();
 
+            var scopedSubjectIds = new List<int>();
+            if (isAdmin && orgId.HasValue)
+            {
+                scopedSubjectIds = await _context.Subjects
+                    .Where(subject => subject.OrganizationId == orgId.Value)
+                    .Select(subject => subject.Id)
+                    .ToListAsync();
+            }
+            else if (isLecturer)
+            {
+                scopedSubjectIds = await _context.SubjectMemberships
+                    .Where(m => m.UserId == userId && (m.RoleInSubject == AuthConstants.Lecturer || m.RoleInSubject == AuthConstants.SubjectLead))
+                    .Select(m => m.SubjectId)
+                    .ToListAsync();
+            }
+
             var query = _context.TokenUsages
                 .Where(u => u.Timestamp >= startDate && u.Timestamp <= endDate);
 
@@ -42,15 +58,11 @@ namespace ServiceLayer.Services
             }
             else if (isLecturer)
             {
-                var subjectIds = await _context.SubjectMemberships
-                    .Where(m => m.UserId == userId && (m.RoleInSubject == AuthConstants.Lecturer || m.RoleInSubject == AuthConstants.SubjectLead))
-                    .Select(m => m.SubjectId)
-                    .ToListAsync();
-
-                query = query.Where(u => u.SubjectId.HasValue && subjectIds.Contains(u.SubjectId.Value));
+                query = query.Where(u => u.SubjectId.HasValue && scopedSubjectIds.Contains(u.SubjectId.Value));
             }
             else
             {
+                // The report endpoints deny students, but keep the service safe if reused elsewhere.
                 query = query.Where(u => u.UserId == userId);
             }
 
@@ -75,15 +87,13 @@ namespace ServiceLayer.Services
                     group => group.Key,
                     group => string.Join(", ", group.Select(pair => pair.RoleName).Distinct().OrderBy(role => role)));
 
-            var usageSubjectIds = usages
-                .Where(u => u.SubjectId.HasValue)
-                .Select(u => u.SubjectId!.Value)
-                .Distinct()
-                .ToList();
-            var indexedDocumentCounts = usageSubjectIds.Count == 0
+            var documentScopeSubjectIds = scopedSubjectIds.Count > 0
+                ? scopedSubjectIds
+                : usages.Where(u => u.SubjectId.HasValue).Select(u => u.SubjectId!.Value).Distinct().ToList();
+            var indexedDocumentCounts = documentScopeSubjectIds.Count == 0
                 ? new List<(int SubjectId, int Count)>()
                 : (await _context.Documents
-                    .Where(document => usageSubjectIds.Contains(document.SubjectId) && document.IsIndexed)
+                    .Where(document => documentScopeSubjectIds.Contains(document.SubjectId) && document.IsIndexed)
                     .GroupBy(document => document.SubjectId)
                     .Select(group => new { SubjectId = group.Key, Count = group.Count() })
                     .ToListAsync())
@@ -94,6 +104,7 @@ namespace ServiceLayer.Services
 
             var report = new UsageReportDto
             {
+                ScopeKind = isAdmin ? "organization" : "teaching",
                 ScopeLabel = isAdmin ? "Organization usage" : isLecturer ? "Teaching analytics" : "My learning usage",
                 ScopeDescription = isAdmin
                     ? "Privacy-safe usage totals across your active organization."
@@ -109,6 +120,7 @@ namespace ServiceLayer.Services
                 QuestionCount = usages.Count,
                 CompletedQuestionCount = usages.Count,
                 ActiveUserCount = usageUserIds.Count,
+                AccessibleSubjectCount = scopedSubjectIds.Count,
                 IndexedDocumentCount = indexedDocumentCounts.Sum(item => item.Count),
                 TokensAreEstimated = usages.Any(u => u.IsEstimated)
             };
@@ -127,27 +139,30 @@ namespace ServiceLayer.Services
                 .OrderBy(d => d.Date)
                 .ToList();
 
-            report.UserUsages = usages
-                .GroupBy(u => new
-                {
-                    u.UserId,
-                    UserName = u.User?.FullName ?? string.Empty,
-                    Email = u.User?.Email ?? "Unknown"
-                })
-                .Select(g => new UserTokenUsageDto
-                {
-                    UserId = g.Key.UserId,
-                    UserName = string.IsNullOrWhiteSpace(g.Key.UserName) ? g.Key.Email : g.Key.UserName,
-                    Email = g.Key.Email,
-                    SystemRole = rolesByUser.GetValueOrDefault(g.Key.UserId, "Unknown"),
-                    QuestionCount = g.Count(),
-                    InputTokens = g.Sum(x => x.InputTokens),
-                    RetrievedContextTokens = g.Sum(x => x.RetrievedContextTokens),
-                    OutputTokens = g.Sum(x => x.OutputTokens),
-                    TotalTokens = g.Sum(x => x.TotalTokens)
-                })
-                .OrderByDescending(u => u.TotalTokens)
-                .ToList();
+            if (isAdmin)
+            {
+                report.UserUsages = usages
+                    .GroupBy(u => new
+                    {
+                        u.UserId,
+                        UserName = u.User?.FullName ?? string.Empty,
+                        Email = u.User?.Email ?? "Unknown"
+                    })
+                    .Select(g => new UserTokenUsageDto
+                    {
+                        UserId = g.Key.UserId,
+                        UserName = string.IsNullOrWhiteSpace(g.Key.UserName) ? g.Key.Email : g.Key.UserName,
+                        Email = g.Key.Email,
+                        SystemRole = rolesByUser.GetValueOrDefault(g.Key.UserId, "Unknown"),
+                        QuestionCount = g.Count(),
+                        InputTokens = g.Sum(x => x.InputTokens),
+                        RetrievedContextTokens = g.Sum(x => x.RetrievedContextTokens),
+                        OutputTokens = g.Sum(x => x.OutputTokens),
+                        TotalTokens = g.Sum(x => x.TotalTokens)
+                    })
+                    .OrderByDescending(u => u.TotalTokens)
+                    .ToList();
+            }
 
             report.SubjectUsages = usages
                 .Where(u => u.SubjectId.HasValue)

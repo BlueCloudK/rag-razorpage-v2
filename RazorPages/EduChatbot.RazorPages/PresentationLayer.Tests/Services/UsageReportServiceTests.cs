@@ -71,6 +71,7 @@ public class UsageReportServiceTests
 
         var report = await service.GetUsageReportAsync(DateTime.UtcNow.AddDays(-7), DateTime.UtcNow);
 
+        Assert.Equal("organization", report.ScopeKind);
         var user = Assert.Single(report.UserUsages);
         Assert.Equal("Ada Administrator", user.UserName);
         Assert.Equal("ada@example.edu", user.Email);
@@ -90,7 +91,7 @@ public class UsageReportServiceTests
     }
 
     [Fact]
-    public async Task GetUsageReportAsync_StudentReceivesOnlyOwnUsage()
+    public async Task GetUsageReportAsync_StudentServiceFallbackReceivesOnlyOwnUsage()
     {
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
@@ -111,8 +112,7 @@ public class UsageReportServiceTests
 
         var report = await service.GetUsageReportAsync(DateTime.UtcNow.AddDays(-7), DateTime.UtcNow);
 
-        var user = Assert.Single(report.UserUsages);
-        Assert.Equal("student-1", user.UserId);
+        Assert.Empty(report.UserUsages);
         Assert.Equal(35, report.TotalTokens);
     }
 
@@ -149,7 +149,9 @@ public class UsageReportServiceTests
 
         var report = await service.GetUsageReportAsync(DateTime.UtcNow.AddDays(-7), DateTime.UtcNow);
 
-        Assert.Equal("student-1", Assert.Single(report.UserUsages).UserId);
+        Assert.Equal("teaching", report.ScopeKind);
+        Assert.Empty(report.UserUsages);
+        Assert.Equal(1, report.AccessibleSubjectCount);
         Assert.Equal(1, Assert.Single(report.SubjectUsages).SubjectId);
         Assert.Equal(35, report.TotalTokens);
     }

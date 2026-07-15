@@ -8,7 +8,7 @@ using ServiceLayer.Services;
 
 namespace PresentationLayer.Pages.Reports;
 
-[Authorize]
+[Authorize(Roles = AuthConstants.Admin + "," + AuthConstants.Lecturer)]
 public class UsageModel : PageModel
 {
     private static readonly int[] AllowedDayRanges = [7, 30, 90];
@@ -46,19 +46,22 @@ public class UsageModel : PageModel
             "Total tokens",
             "Indexed documents");
 
-        foreach (var user in Report.UserUsages)
+        if (Report.ScopeKind == "organization")
         {
-            AppendCsvRow(csv,
-                "User",
-                user.UserName,
-                user.Email,
-                user.SystemRole,
-                user.QuestionCount,
-                user.InputTokens,
-                user.RetrievedContextTokens,
-                user.OutputTokens,
-                user.TotalTokens,
-                null);
+            foreach (var user in Report.UserUsages)
+            {
+                AppendCsvRow(csv,
+                    "User",
+                    user.UserName,
+                    user.Email,
+                    user.SystemRole,
+                    user.QuestionCount,
+                    user.InputTokens,
+                    user.RetrievedContextTokens,
+                    user.OutputTokens,
+                    user.TotalTokens,
+                    null);
+            }
         }
 
         foreach (var subject in Report.SubjectUsages)

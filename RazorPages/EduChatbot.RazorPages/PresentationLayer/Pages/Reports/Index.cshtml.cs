@@ -5,7 +5,7 @@ using ServiceLayer.Services;
 
 namespace PresentationLayer.Pages.Reports;
 
-[Authorize]
+[Authorize(Roles = AuthConstants.Admin + "," + AuthConstants.Lecturer)]
 public class IndexModel : PageModel
 {
     private readonly IUsageReportService _usageReportService;
