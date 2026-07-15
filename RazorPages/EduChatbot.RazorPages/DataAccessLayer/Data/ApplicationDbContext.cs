@@ -26,6 +26,7 @@ namespace DataAccessLayer.Data
         public DbSet<CheckoutSession> CheckoutSessions { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<SubjectUserMemory> SubjectUserMemories { get; set; }
+        public DbSet<TokenUsage> TokenUsages { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -156,6 +157,39 @@ namespace DataAccessLayer.Data
                 .WithMany()
                 .HasForeignKey(u => u.OrganizationId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<TokenUsage>()
+                .HasIndex(t => new { t.UserId, t.Timestamp });
+            
+            modelBuilder.Entity<TokenUsage>()
+                .HasIndex(t => new { t.SubjectId, t.Timestamp });
+
+            modelBuilder.Entity<TokenUsage>()
+                .HasIndex(t => new { t.OrganizationId, t.Timestamp });
+
+            modelBuilder.Entity<TokenUsage>()
+                .HasOne(t => t.User)
+                .WithMany()
+                .HasForeignKey(t => t.UserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<TokenUsage>()
+                .HasOne(t => t.Organization)
+                .WithMany()
+                .HasForeignKey(t => t.OrganizationId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<TokenUsage>()
+                .HasOne(t => t.Subject)
+                .WithMany()
+                .HasForeignKey(t => t.SubjectId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<TokenUsage>()
+                .HasOne(t => t.ChatSession)
+                .WithMany()
+                .HasForeignKey(t => t.ChatSessionId)
+                .OnDelete(DeleteBehavior.NoAction);
         }
     }
 }

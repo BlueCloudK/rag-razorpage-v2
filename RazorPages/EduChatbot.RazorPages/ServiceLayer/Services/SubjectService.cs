@@ -152,6 +152,12 @@ namespace ServiceLayer.Services
 
             var subjectName = subject.Name;
             var organizationId = subject.OrganizationId;
+            var tokenUsages = await _context.TokenUsages
+                .Where(u => u.SubjectId == id)
+                .ToListAsync();
+            if (tokenUsages.Any())
+                _context.TokenUsages.RemoveRange(tokenUsages);
+
             var memberships = await _context.SubjectMemberships
                 .Where(m => m.SubjectId == id)
                 .ToListAsync();

@@ -47,6 +47,7 @@ namespace ServiceLayer.Services
             services.AddScoped<IAccessControlService, AccessControlService>();
             services.AddScoped<ISubscriptionService, SubscriptionService>();
             services.AddScoped<IUsageService, UsageService>();
+            services.AddScoped<IUsageReportService, UsageReportService>();
             services.AddScoped<IAuditLogService, AuditLogService>();
             services.AddScoped<IOrganizationService, OrganizationService>();
             services.AddScoped<IBillingService, BillingService>();

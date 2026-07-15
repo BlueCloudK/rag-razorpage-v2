@@ -224,6 +224,33 @@ namespace ServiceLayer.Services
                     CREATE UNIQUE INDEX [IX_SubjectUserMemories_SubjectId_UserId] ON [SubjectUserMemories] ([SubjectId], [UserId]);
                     CREATE INDEX [IX_SubjectUserMemories_UserId] ON [SubjectUserMemories] ([UserId]);
                 END;
+
+                IF OBJECT_ID(N'[TokenUsages]', N'U') IS NULL
+                BEGIN
+                    CREATE TABLE [TokenUsages] (
+                        [Id] int NOT NULL IDENTITY,
+                        [UserId] nvarchar(450) NOT NULL,
+                        [OrganizationId] int NULL,
+                        [SubjectId] int NULL,
+                        [ChatSessionId] int NULL,
+                        [InputTokens] int NOT NULL,
+                        [RetrievedContextTokens] int NOT NULL,
+                        [OutputTokens] int NOT NULL,
+                        [TotalTokens] int NOT NULL,
+                        [ModelName] nvarchar(max) NOT NULL,
+                        [IsEstimated] bit NOT NULL,
+                        [Timestamp] datetime2 NOT NULL,
+                        CONSTRAINT [PK_TokenUsages] PRIMARY KEY ([Id]),
+                        CONSTRAINT [FK_TokenUsages_AspNetUsers_UserId] FOREIGN KEY ([UserId]) REFERENCES [AspNetUsers] ([Id]) ON DELETE NO ACTION,
+                        CONSTRAINT [FK_TokenUsages_Organizations_OrganizationId] FOREIGN KEY ([OrganizationId]) REFERENCES [Organizations] ([Id]) ON DELETE NO ACTION,
+                        CONSTRAINT [FK_TokenUsages_Subjects_SubjectId] FOREIGN KEY ([SubjectId]) REFERENCES [Subjects] ([Id]) ON DELETE NO ACTION,
+                        CONSTRAINT [FK_TokenUsages_ChatSessions_ChatSessionId] FOREIGN KEY ([ChatSessionId]) REFERENCES [ChatSessions] ([Id]) ON DELETE NO ACTION
+                    );
+                    CREATE INDEX [IX_TokenUsages_UserId_Timestamp] ON [TokenUsages] ([UserId], [Timestamp]);
+                    CREATE INDEX [IX_TokenUsages_OrganizationId_Timestamp] ON [TokenUsages] ([OrganizationId], [Timestamp]);
+                    CREATE INDEX [IX_TokenUsages_SubjectId_Timestamp] ON [TokenUsages] ([SubjectId], [Timestamp]);
+                    CREATE INDEX [IX_TokenUsages_ChatSessionId] ON [TokenUsages] ([ChatSessionId]);
+                END;
             """);
         }
 
