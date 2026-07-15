@@ -213,6 +213,7 @@ namespace ServiceLayer.Services
             ChatTraceDto trace = new();
             int inputTokens = 0, retrievedContextTokens = 0, outputTokens = 0, totalTokens = 0;
             bool isEstimated = false;
+            bool hasNativeUsage = false;
 
             var documentFilters = indexedDocuments
                 .Select(d => d.Id.ToString())
@@ -244,13 +245,16 @@ namespace ServiceLayer.Services
                 using var jsonDoc = JsonDocument.Parse(responseString);
                 answer = jsonDoc.RootElement.GetProperty("answer").GetString() ?? "Empty response.";
                 trace = ReadTrace(jsonDoc.RootElement);
+                retrievedContextTokens = EstimateTokens(string.Join(" ", trace.Contexts.Select(context => context.Content)));
 
-                if (jsonDoc.RootElement.TryGetProperty("usage", out var usageEl) && usageEl.ValueKind == JsonValueKind.Object)
+                if (TryReadNativeUsage(jsonDoc.RootElement, out var nativePromptTokens, out var nativeOutputTokens, out var nativeTotalTokens))
                 {
-                    inputTokens = usageEl.TryGetProperty("prompt_tokens", out var p) && p.ValueKind == JsonValueKind.Number ? p.GetInt32() : 0;
-                    outputTokens = usageEl.TryGetProperty("completion_tokens", out var c) && c.ValueKind == JsonValueKind.Number ? c.GetInt32() : 0;
-                    totalTokens = usageEl.TryGetProperty("total_tokens", out var t) && t.ValueKind == JsonValueKind.Number ? t.GetInt32() : 0;
-                    isEstimated = false;
+                    inputTokens = Math.Max(0, nativePromptTokens - retrievedContextTokens);
+                    outputTokens = nativeOutputTokens;
+                    totalTokens = nativeTotalTokens;
+                    // The runtime reports a combined prompt count, so the input/context split remains an estimate.
+                    isEstimated = true;
+                    hasNativeUsage = true;
                 }
                 else
                 {
@@ -299,11 +303,12 @@ namespace ServiceLayer.Services
             await _usageService.IncrementQuestionCountAsync();
             await _auditLogService.RecordAsync("AskQuestion", "ChatSession", session.Id, subjectId, null, "User asked a question in a subject chat.");
 
-            if (isEstimated)
+            if (!hasNativeUsage)
             {
-                inputTokens = (content.Length + 500) / 4;
-                outputTokens = answer.Length / 4;
-                totalTokens = inputTokens + outputTokens;
+                var historyText = string.Join(" ", recentHistory.Select(item => $"{item.role}: {item.content}"));
+                inputTokens = EstimateTokens(content) + EstimateTokens(historyText) + EstimateTokens(subjectMemory);
+                outputTokens = EstimateTokens(answer);
+                totalTokens = inputTokens + retrievedContextTokens + outputTokens;
             }
 
             var subjectOrgId = session.Subject?.OrganizationId ?? 
@@ -511,11 +516,13 @@ namespace ServiceLayer.Services
             ChatTraceDto trace;
             int inputTokens = 0, retrievedContextTokens = 0, outputTokens = 0, totalTokens = 0;
             bool isEstimated = false;
+            bool hasNativeUsage = false;
 
             using (var jsonDoc = JsonDocument.Parse(finalJson))
             {
                 answer = jsonDoc.RootElement.GetProperty("answer").GetString() ?? "Empty response.";
                 trace = ReadTrace(jsonDoc.RootElement);
+                retrievedContextTokens = EstimateTokens(string.Join(" ", trace.Contexts.Select(context => context.Content)));
                 if (jsonDoc.RootElement.TryGetProperty("sources", out var sourcesEl) && sourcesEl.ValueKind == JsonValueKind.Array)
                 {
                     sourceDocs = string.Join(", ", sourcesEl.EnumerateArray()
@@ -523,12 +530,13 @@ namespace ServiceLayer.Services
                         .Where(s => !string.IsNullOrEmpty(s)));
                 }
 
-                if (jsonDoc.RootElement.TryGetProperty("usage", out var usageEl) && usageEl.ValueKind == JsonValueKind.Object)
+                if (TryReadNativeUsage(jsonDoc.RootElement, out var nativePromptTokens, out var nativeOutputTokens, out var nativeTotalTokens))
                 {
-                    inputTokens = usageEl.TryGetProperty("prompt_tokens", out var p) && p.ValueKind == JsonValueKind.Number ? p.GetInt32() : 0;
-                    outputTokens = usageEl.TryGetProperty("completion_tokens", out var c) && c.ValueKind == JsonValueKind.Number ? c.GetInt32() : 0;
-                    totalTokens = usageEl.TryGetProperty("total_tokens", out var t) && t.ValueKind == JsonValueKind.Number ? t.GetInt32() : 0;
-                    isEstimated = false;
+                    inputTokens = Math.Max(0, nativePromptTokens - retrievedContextTokens);
+                    outputTokens = nativeOutputTokens;
+                    totalTokens = nativeTotalTokens;
+                    isEstimated = true;
+                    hasNativeUsage = true;
                 }
                 else
                 {
@@ -551,11 +559,12 @@ namespace ServiceLayer.Services
             await _usageService.IncrementQuestionCountAsync();
             await _auditLogService.RecordAsync("AskQuestion", "ChatSession", session.Id, subjectId, null, "User asked a question in a subject chat.");
 
-            if (isEstimated)
+            if (!hasNativeUsage)
             {
-                inputTokens = (content.Length + 500) / 4;
-                outputTokens = answer.Length / 4;
-                totalTokens = inputTokens + outputTokens;
+                var historyText = string.Join(" ", recentHistory.Select(item => $"{item.role}: {item.content}"));
+                inputTokens = EstimateTokens(content) + EstimateTokens(historyText) + EstimateTokens(subjectMemory);
+                outputTokens = EstimateTokens(answer);
+                totalTokens = inputTokens + retrievedContextTokens + outputTokens;
             }
 
             var subjectOrgId = session.Subject?.OrganizationId ?? 
@@ -583,6 +592,45 @@ namespace ServiceLayer.Services
                 Bot = botMsg.ToDto(),
                 Trace = trace
             };
+        }
+
+        private static bool TryReadNativeUsage(JsonElement root, out int promptTokens, out int outputTokens, out int totalTokens)
+        {
+            promptTokens = 0;
+            outputTokens = 0;
+            totalTokens = 0;
+            if (!root.TryGetProperty("usage", out var usage) || usage.ValueKind != JsonValueKind.Object)
+                return false;
+
+            promptTokens = ReadInteger(usage, "prompt_tokens", "prompt_eval_count");
+            outputTokens = ReadInteger(usage, "completion_tokens", "eval_count");
+            totalTokens = ReadInteger(usage, "total_tokens");
+            if (totalTokens == 0)
+                totalTokens = promptTokens + outputTokens;
+
+            return promptTokens > 0 || outputTokens > 0 || totalTokens > 0;
+        }
+
+        private static int ReadInteger(JsonElement element, params string[] names)
+        {
+            foreach (var name in names)
+            {
+                if (element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number))
+                    return number;
+            }
+
+            return 0;
+        }
+
+        private static int EstimateTokens(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return 0;
+
+            var normalized = value.Trim();
+            var wordEstimate = normalized.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length * 2;
+            var characterEstimate = (int)Math.Ceiling(normalized.Length / 3.8d);
+            return Math.Max(wordEstimate, characterEstimate);
         }
 
         private static ChatTraceDto ReadTrace(JsonElement root)
@@ -691,6 +739,12 @@ namespace ServiceLayer.Services
 
             if (session.Messages?.Any() == true)
                 _context.ChatMessages.RemoveRange(session.Messages);
+
+            var tokenUsages = await _context.TokenUsages
+                .Where(u => u.ChatSessionId == session.Id)
+                .ToListAsync();
+            if (tokenUsages.Any())
+                _context.TokenUsages.RemoveRange(tokenUsages);
 
             _context.ChatSessions.Remove(session);
             await _context.SaveChangesAsync();

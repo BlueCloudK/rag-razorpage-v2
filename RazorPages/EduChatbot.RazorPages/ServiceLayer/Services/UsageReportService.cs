@@ -64,8 +64,11 @@ namespace ServiceLayer.Services
                 StartDate = startDate,
                 EndDate = endDate,
                 TotalInputTokens = usages.Sum(u => u.InputTokens),
+                TotalRetrievedContextTokens = usages.Sum(u => u.RetrievedContextTokens),
                 TotalOutputTokens = usages.Sum(u => u.OutputTokens),
-                TotalTokens = usages.Sum(u => u.TotalTokens)
+                TotalTokens = usages.Sum(u => u.TotalTokens),
+                QuestionCount = usages.Count,
+                TokensAreEstimated = usages.Count == 0 || usages.Any(u => u.IsEstimated)
             };
 
             report.DailyUsages = usages
@@ -74,8 +77,10 @@ namespace ServiceLayer.Services
                 {
                     Date = g.Key,
                     InputTokens = g.Sum(x => x.InputTokens),
+                    RetrievedContextTokens = g.Sum(x => x.RetrievedContextTokens),
                     OutputTokens = g.Sum(x => x.OutputTokens),
-                    TotalTokens = g.Sum(x => x.TotalTokens)
+                    TotalTokens = g.Sum(x => x.TotalTokens),
+                    QuestionCount = g.Count()
                 })
                 .OrderBy(d => d.Date)
                 .ToList();
@@ -86,7 +91,9 @@ namespace ServiceLayer.Services
                 {
                     UserId = g.Key.UserId,
                     Email = g.Key.Email,
+                    QuestionCount = g.Count(),
                     InputTokens = g.Sum(x => x.InputTokens),
+                    RetrievedContextTokens = g.Sum(x => x.RetrievedContextTokens),
                     OutputTokens = g.Sum(x => x.OutputTokens),
                     TotalTokens = g.Sum(x => x.TotalTokens)
                 })
@@ -100,7 +107,9 @@ namespace ServiceLayer.Services
                 {
                     SubjectId = g.Key.SubjectId,
                     SubjectName = g.Key.SubjectName,
+                    QuestionCount = g.Count(),
                     InputTokens = g.Sum(x => x.InputTokens),
+                    RetrievedContextTokens = g.Sum(x => x.RetrievedContextTokens),
                     OutputTokens = g.Sum(x => x.OutputTokens),
                     TotalTokens = g.Sum(x => x.TotalTokens)
                 })

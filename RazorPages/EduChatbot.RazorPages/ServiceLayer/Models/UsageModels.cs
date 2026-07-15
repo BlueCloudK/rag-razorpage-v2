@@ -22,8 +22,11 @@ namespace ServiceLayer.Models
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public int TotalInputTokens { get; set; }
+        public int TotalRetrievedContextTokens { get; set; }
         public int TotalOutputTokens { get; set; }
         public int TotalTokens { get; set; }
+        public int QuestionCount { get; set; }
+        public bool TokensAreEstimated { get; set; }
 
         public List<DailyTokenUsageDto> DailyUsages { get; set; } = new();
         public List<UserTokenUsageDto> UserUsages { get; set; } = new();
@@ -34,15 +37,19 @@ namespace ServiceLayer.Models
     {
         public DateTime Date { get; set; }
         public int InputTokens { get; set; }
+        public int RetrievedContextTokens { get; set; }
         public int OutputTokens { get; set; }
         public int TotalTokens { get; set; }
+        public int QuestionCount { get; set; }
     }
 
     public class UserTokenUsageDto
     {
         public string UserId { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
+        public int QuestionCount { get; set; }
         public int InputTokens { get; set; }
+        public int RetrievedContextTokens { get; set; }
         public int OutputTokens { get; set; }
         public int TotalTokens { get; set; }
     }
@@ -51,7 +58,9 @@ namespace ServiceLayer.Models
     {
         public int SubjectId { get; set; }
         public string SubjectName { get; set; } = string.Empty;
+        public int QuestionCount { get; set; }
         public int InputTokens { get; set; }
+        public int RetrievedContextTokens { get; set; }
         public int OutputTokens { get; set; }
         public int TotalTokens { get; set; }
     }
