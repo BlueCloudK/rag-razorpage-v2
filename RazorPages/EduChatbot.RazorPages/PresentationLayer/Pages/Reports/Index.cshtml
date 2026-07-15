@@ -10,11 +10,16 @@
 }
 
 <section class="reports-page">
-    <header class="reports-hero">
+    <header class="reports-header">
         <div class="reports-heading">
-            <p class="eyebrow">Reports and statistics</p>
-            <h1>@Model.Report.ScopeLabel</h1>
-            <p>@Model.Report.ScopeDescription Token totals only include completed answers and never expose prompts, answers, or document text.</p>
+            <div class="reports-title-row">
+                <div>
+                    <p class="eyebrow">Reports and statistics</p>
+                    <h1>@Model.Report.ScopeLabel</h1>
+                </div>
+                <span class="scope-badge">@(isTeachingScope ? "Lecturer scope" : "Organization scope")</span>
+            </div>
+            <p>@Model.Report.ScopeDescription Privacy-safe totals only: prompts, answers, and document text are never shown here.</p>
         </div>
         <div class="reports-actions">
             @if (Model.Report.TokensAreEstimated)
@@ -25,18 +30,6 @@
         </div>
     </header>
 
-    @if (!Model.HasUsage)
-    {
-        <div class="empty-state" role="status">
-            <span class="empty-icon" aria-hidden="true">i</span>
-            <div>
-                <h2>No completed answers tracked yet</h2>
-                <p>Usage tracking begins with new successful AI answers. Ask a question about an indexed document, then refresh this page. Historical chat messages are not backfilled as token records.</p>
-            </div>
-        </div>
-    }
-    else
-    {
     <div class="kpi-grid" aria-label="Usage summary">
         <article class="kpi-card">
             <span>Total tokens</span>
@@ -60,6 +53,20 @@
         </article>
     </div>
 
+    @if (!Model.HasUsage)
+    {
+        <section class="report-empty-panel" role="status">
+            <div class="empty-icon" aria-hidden="true">0</div>
+            <div>
+                <p class="section-kicker">Tracking status</p>
+                <h2>No completed AI answers tracked yet</h2>
+                <p>Token tracking starts when an AI answer completes successfully in your scope. Historical chat messages are intentionally not backfilled.</p>
+            </div>
+            <a class="detail-link secondary-action" asp-page="/Subjects/Index">Open subjects</a>
+        </section>
+    }
+    else
+    {
     <div class="report-layout">
         <section class="report-panel chart-panel" aria-labelledby="daily-tokens-heading">
             <div class="panel-heading">

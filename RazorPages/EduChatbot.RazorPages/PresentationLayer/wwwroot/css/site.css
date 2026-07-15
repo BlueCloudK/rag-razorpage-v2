@@ -113,6 +113,34 @@ button, input, textarea { font: inherit; }
   color: var(--text) !important;
 }
 
+.app-links .nav-link.active {
+  background: rgba(109, 124, 255, 0.14);
+  border-color: rgba(109, 124, 255, 0.34);
+  color: #e9ecff !important;
+}
+
+.nav-account {
+  align-items: center;
+  display: flex;
+  margin-left: 8px;
+}
+
+.nav-user {
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  display: inline-flex;
+  font-size: .78rem;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+.nav-user strong { color: var(--text); }
+.nav-user span { color: #9da8ff; font-weight: 800; }
+
 .nav-cta {
   background: var(--brand) !important;
   color: #fff !important;
@@ -1262,6 +1290,7 @@ h1, h2 { margin: 0; }
   .app-nav-inner { padding: 0 14px; }
   .app-links { align-items: stretch; padding: 12px 0; }
   .app-links .nav-link, .logout-link { justify-content: center; width: 100%; }
+  .nav-account { justify-content: center; margin: 4px 0; }
   .admin-console-shell { grid-template-columns: 1fr; }
   .admin-sidebar {
     border-bottom: 1px solid var(--line);

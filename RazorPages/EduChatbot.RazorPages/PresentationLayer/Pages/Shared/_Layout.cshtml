@@ -2,6 +2,10 @@
     var currentPath = Context.Request.Path;
     var isAdminSection = currentPath.StartsWithSegments("/Admin") || currentPath.StartsWithSegments("/Billing") || currentPath.StartsWithSegments("/RagLab");
     string AdminActiveClass(string page) => currentPath.StartsWithSegments(page) ? "active" : "";
+    string NavigationActiveClass(string page) => page == "/"
+        ? (string.Equals(currentPath.Value, "/", StringComparison.OrdinalIgnoreCase) ? "active" : "")
+        : (currentPath.StartsWithSegments(page) ? "active" : "");
+    var currentRole = User.IsInRole("Admin") ? "Admin" : User.IsInRole("Lecturer") ? "Lecturer" : "Student";
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -48,15 +52,15 @@
                     <div id="appNavigation" class="navbar-collapse collapse">
                         <ul class="navbar-nav app-links ms-auto">
                             <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-page="/Index">Dashboard</a>
+                                <a class="nav-link @NavigationActiveClass("/")" asp-area="" asp-page="/Index">Dashboard</a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-page="/Subjects/Index">Subjects</a>
+                                <a class="nav-link @NavigationActiveClass("/Subjects")" asp-area="" asp-page="/Subjects/Index">Subjects</a>
                             </li>
                             @if (User.IsInRole("Admin") || User.IsInRole("Lecturer"))
                             {
                                 <li class="nav-item">
-                                    <a class="nav-link" asp-area="" asp-page="/Reports/Index">Reports</a>
+                                    <a class="nav-link @NavigationActiveClass("/Reports")" asp-area="" asp-page="/Reports/Index">Reports</a>
                                 </li>
                             }
                             @if (User.IsInRole("Admin"))
@@ -70,6 +74,9 @@
                             </li>
                             @if (User.Identity?.IsAuthenticated == true)
                             {
+                                <li class="nav-item nav-account">
+                                    <span class="nav-user"><strong>@User.Identity?.Name</strong><span>@currentRole</span></span>
+                                </li>
                                 <li class="nav-item">
                                     <form method="post" asp-page="/Account/Logout" class="nav-form">
                                         <button type="submit" class="nav-link logout-link">Logout</button>
