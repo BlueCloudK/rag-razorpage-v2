@@ -25,12 +25,12 @@ namespace ServiceLayer.Models
         public int TotalOutputTokens { get; set; }
         public int TotalTokens { get; set; }
 
-        public List<DailyUsageDto> DailyUsages { get; set; } = new();
-        public List<UserUsageDto> UserUsages { get; set; } = new();
-        public List<SubjectUsageDto> SubjectUsages { get; set; } = new();
+        public List<DailyTokenUsageDto> DailyUsages { get; set; } = new();
+        public List<UserTokenUsageDto> UserUsages { get; set; } = new();
+        public List<SubjectTokenUsageDto> SubjectUsages { get; set; } = new();
     }
 
-    public class DailyUsageDto
+    public class DailyTokenUsageDto
     {
         public DateTime Date { get; set; }
         public int InputTokens { get; set; }
@@ -38,7 +38,7 @@ namespace ServiceLayer.Models
         public int TotalTokens { get; set; }
     }
 
-    public class UserUsageDto
+    public class UserTokenUsageDto
     {
         public string UserId { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
@@ -47,7 +47,7 @@ namespace ServiceLayer.Models
         public int TotalTokens { get; set; }
     }
 
-    public class SubjectUsageDto
+    public class SubjectTokenUsageDto
     {
         public int SubjectId { get; set; }
         public string SubjectName { get; set; } = string.Empty;
