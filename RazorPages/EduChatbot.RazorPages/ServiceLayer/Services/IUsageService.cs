@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using ServiceLayer.Models;
 
 namespace ServiceLayer.Services
 {
@@ -6,5 +7,6 @@ namespace ServiceLayer.Services
     {
         Task<int> GetTodayQuestionCountAsync();
         Task IncrementQuestionCountAsync();
+        Task RecordTokenUsageAsync(TokenUsageRecordInput input);
     }
 }

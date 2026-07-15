@@ -208,9 +208,11 @@ namespace ServiceLayer.Services
                 Timestamp = DateTime.UtcNow
             };
 
-            string answer;
+            string answer = "";
             string sourceDocs = "";
             ChatTraceDto trace = new();
+            int inputTokens = 0, retrievedContextTokens = 0, outputTokens = 0, totalTokens = 0;
+            bool isEstimated = false;
 
             var documentFilters = indexedDocuments
                 .Select(d => d.Id.ToString())
@@ -242,6 +244,18 @@ namespace ServiceLayer.Services
                 using var jsonDoc = JsonDocument.Parse(responseString);
                 answer = jsonDoc.RootElement.GetProperty("answer").GetString() ?? "Empty response.";
                 trace = ReadTrace(jsonDoc.RootElement);
+
+                if (jsonDoc.RootElement.TryGetProperty("usage", out var usageEl) && usageEl.ValueKind == JsonValueKind.Object)
+                {
+                    inputTokens = usageEl.TryGetProperty("prompt_tokens", out var p) && p.ValueKind == JsonValueKind.Number ? p.GetInt32() : 0;
+                    outputTokens = usageEl.TryGetProperty("completion_tokens", out var c) && c.ValueKind == JsonValueKind.Number ? c.GetInt32() : 0;
+                    totalTokens = usageEl.TryGetProperty("total_tokens", out var t) && t.ValueKind == JsonValueKind.Number ? t.GetInt32() : 0;
+                    isEstimated = false;
+                }
+                else
+                {
+                    isEstimated = true;
+                }
 
                 if (jsonDoc.RootElement.TryGetProperty("sources", out var sourcesEl))
                 {
@@ -284,6 +298,30 @@ namespace ServiceLayer.Services
             await _context.SaveChangesAsync(cancellationToken);
             await _usageService.IncrementQuestionCountAsync();
             await _auditLogService.RecordAsync("AskQuestion", "ChatSession", session.Id, subjectId, null, "User asked a question in a subject chat.");
+
+            if (isEstimated)
+            {
+                inputTokens = (content.Length + 500) / 4;
+                outputTokens = answer.Length / 4;
+                totalTokens = inputTokens + outputTokens;
+            }
+
+            var subjectOrgId = session.Subject?.OrganizationId ?? 
+                await _context.Subjects.Where(s => s.Id == subjectId).Select(s => s.OrganizationId).FirstOrDefaultAsync(cancellationToken);
+
+            await _usageService.RecordTokenUsageAsync(new TokenUsageRecordInput
+            {
+                UserId = userId,
+                OrganizationId = subjectOrgId,
+                SubjectId = subjectId,
+                ChatSessionId = session.Id,
+                InputTokens = inputTokens,
+                RetrievedContextTokens = retrievedContextTokens,
+                OutputTokens = outputTokens,
+                TotalTokens = totalTokens,
+                ModelName = trace.Model ?? "Unknown",
+                IsEstimated = isEstimated
+            });
 
             return new ChatSendResult
             {
@@ -468,9 +506,12 @@ namespace ServiceLayer.Services
                 return new ChatSendResult { Success = false, StatusCode = 503, Message = "AI Engine did not return a final answer." };
             }
 
-            string answer;
+            string answer = "";
             string sourceDocs = "";
             ChatTraceDto trace;
+            int inputTokens = 0, retrievedContextTokens = 0, outputTokens = 0, totalTokens = 0;
+            bool isEstimated = false;
+
             using (var jsonDoc = JsonDocument.Parse(finalJson))
             {
                 answer = jsonDoc.RootElement.GetProperty("answer").GetString() ?? "Empty response.";
@@ -480,6 +521,18 @@ namespace ServiceLayer.Services
                     sourceDocs = string.Join(", ", sourcesEl.EnumerateArray()
                         .Select(s => s.GetString())
                         .Where(s => !string.IsNullOrEmpty(s)));
+                }
+
+                if (jsonDoc.RootElement.TryGetProperty("usage", out var usageEl) && usageEl.ValueKind == JsonValueKind.Object)
+                {
+                    inputTokens = usageEl.TryGetProperty("prompt_tokens", out var p) && p.ValueKind == JsonValueKind.Number ? p.GetInt32() : 0;
+                    outputTokens = usageEl.TryGetProperty("completion_tokens", out var c) && c.ValueKind == JsonValueKind.Number ? c.GetInt32() : 0;
+                    totalTokens = usageEl.TryGetProperty("total_tokens", out var t) && t.ValueKind == JsonValueKind.Number ? t.GetInt32() : 0;
+                    isEstimated = false;
+                }
+                else
+                {
+                    isEstimated = true;
                 }
             }
 
@@ -497,6 +550,30 @@ namespace ServiceLayer.Services
             await _context.SaveChangesAsync(cancellationToken);
             await _usageService.IncrementQuestionCountAsync();
             await _auditLogService.RecordAsync("AskQuestion", "ChatSession", session.Id, subjectId, null, "User asked a question in a subject chat.");
+
+            if (isEstimated)
+            {
+                inputTokens = (content.Length + 500) / 4;
+                outputTokens = answer.Length / 4;
+                totalTokens = inputTokens + outputTokens;
+            }
+
+            var subjectOrgId = session.Subject?.OrganizationId ?? 
+                await _context.Subjects.Where(s => s.Id == subjectId).Select(s => s.OrganizationId).FirstOrDefaultAsync(cancellationToken);
+
+            await _usageService.RecordTokenUsageAsync(new TokenUsageRecordInput
+            {
+                UserId = userId,
+                OrganizationId = subjectOrgId,
+                SubjectId = subjectId,
+                ChatSessionId = session.Id,
+                InputTokens = inputTokens,
+                RetrievedContextTokens = retrievedContextTokens,
+                OutputTokens = outputTokens,
+                TotalTokens = totalTokens,
+                ModelName = trace.Model ?? "Unknown",
+                IsEstimated = isEstimated
+            });
 
             return new ChatSendResult
             {

@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using DataAccessLayer.Data;
 using DataAccessLayer.Models;
 using Microsoft.EntityFrameworkCore;
+using ServiceLayer.Models;
 
 namespace ServiceLayer.Services
 {
@@ -55,6 +56,27 @@ namespace ServiceLayer.Services
             }
 
             usage.QuestionCount++;
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task RecordTokenUsageAsync(TokenUsageRecordInput input)
+        {
+            var usage = new TokenUsage
+            {
+                UserId = input.UserId,
+                OrganizationId = input.OrganizationId,
+                SubjectId = input.SubjectId,
+                ChatSessionId = input.ChatSessionId,
+                InputTokens = input.InputTokens,
+                RetrievedContextTokens = input.RetrievedContextTokens,
+                OutputTokens = input.OutputTokens,
+                TotalTokens = input.TotalTokens,
+                ModelName = input.ModelName,
+                IsEstimated = input.IsEstimated,
+                Timestamp = DateTime.UtcNow
+            };
+
+            _context.TokenUsages.Add(usage);
             await _context.SaveChangesAsync();
         }
 
