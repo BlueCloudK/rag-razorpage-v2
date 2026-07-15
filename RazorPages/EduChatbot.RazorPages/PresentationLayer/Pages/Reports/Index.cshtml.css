@@ -15,11 +15,13 @@
 .period-copy { display: grid; gap: 3px; }
 .period-copy span { color: var(--muted); font-size: .75rem; }
 .period-copy strong { color: var(--text); font-size: .84rem; }
-.period-tabs { display: flex; gap: 5px; }
-.period-tabs { background: #11141b; border: 1px solid var(--line); border-radius: 7px; padding: 3px; }
-.period-tabs a { border: 1px solid transparent; border-radius: 5px; color: var(--muted); font-size: .78rem; font-weight: 800; padding: 7px 10px; }
-.period-tabs a:hover { background: var(--panel-2); color: var(--text); }
-.period-tabs a.active { background: var(--brand); border-color: #8692ff; box-shadow: 0 2px 8px rgba(0,0,0,.22); color: #fff; }
+.period-tabs { display: grid; gap: 6px; grid-template-columns: repeat(3, minmax(58px, 1fr)); }
+.period-tab { align-items: center; background: #11141b; border: 1px solid var(--line); border-radius: 7px; color: var(--muted); display: grid; justify-items: center; line-height: 1; min-height: 46px; padding: 6px 10px; }
+.period-tab strong { color: var(--text); font-size: .9rem; font-weight: 850; }
+.period-tab span { font-size: .64rem; font-weight: 750; margin-top: 3px; text-transform: uppercase; }
+.period-tab:hover { background: var(--panel-2); border-color: #4a5570; color: var(--text); }
+.period-tab.is-active { background: #5665dc; border-color: #94a0ff; box-shadow: 0 5px 16px rgba(70,84,214,.26); color: #fff; }
+.period-tab.is-active strong { color: #fff; }
 .report-metrics { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: hidden; }
 .report-metrics article { border-right: 1px solid var(--line); min-height: 104px; padding: 16px; }
 .report-metrics article:last-child { border-right: 0; }

@@ -40,7 +40,9 @@
         <nav class="period-tabs" aria-label="Select reporting period">
             @foreach (var days in new[] { 7, 30, 90 })
             {
-                <a class="@(Model.Days == days ? "active" : null)" asp-page="/Reports/Index" asp-route-days="@days" aria-current="@(Model.Days == days ? "page" : null)">@days days</a>
+                <a class="period-tab @(Model.Days == days ? "is-active" : null)" asp-page="/Reports/Index" asp-route-days="@days" aria-current="@(Model.Days == days ? "page" : null)">
+                    <strong>@days</strong><span>days</span>
+                </a>
             }
         </nav>
     </section>
