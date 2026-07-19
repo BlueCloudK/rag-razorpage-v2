@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using ServiceLayer.Models;
+using ServiceLayer.Dtos;
+using ServiceLayer.Options;
 using ServiceLayer.Services;
 using System.Text.Json;
 
@@ -76,7 +77,7 @@ public class IndexModel : PageModel
         }
     }
 
-    public async Task<IActionResult> OnGetDocumentChunksAsync(int documentId, int offset = 0, int limit = 8)
+    public async Task<IActionResult> OnGetDocumentChunksAsync(int documentId, int offset = 0, int limit = 0)
     {
         var inspector = await _documentService.GetChunkInspectorAsync(documentId, offset, limit);
         if (inspector == null)

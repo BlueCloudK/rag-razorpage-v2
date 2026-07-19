@@ -1,22 +1,22 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using DataAccessLayer.Data;
-using DataAccessLayer.Models;
+using DataAccessLayer.Repositories;
+using DataAccessLayer.Entities;
 using Microsoft.EntityFrameworkCore;
-using ServiceLayer.Models;
+using ServiceLayer.Dtos;
 
 namespace ServiceLayer.Services
 {
     public class SubscriptionService : ISubscriptionService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IDataRepository _repository;
         private readonly IAccessControlService _accessControl;
         private readonly ICurrentUserService _currentUser;
 
-        public SubscriptionService(ApplicationDbContext context, IAccessControlService accessControl, ICurrentUserService currentUser)
+        public SubscriptionService(IDataRepository context, IAccessControlService accessControl, ICurrentUserService currentUser)
         {
-            _context = context;
+            _repository = context;
             _accessControl = accessControl;
             _currentUser = currentUser;
         }
@@ -29,12 +29,12 @@ namespace ServiceLayer.Services
             var today = DateTime.UtcNow.Date;
 
             var usedQuestions = organizationId.HasValue
-                ? await _context.QuestionUsages
+                ? await _repository.QuestionUsages
                     .Where(u => u.OrganizationId == organizationId.Value && u.UsageDate == today)
                     .SumAsync(u => u.QuestionCount)
                 : string.IsNullOrEmpty(userId)
                 ? 0
-                : await _context.QuestionUsages
+                : await _repository.QuestionUsages
                     .Where(u => u.UserId == userId && u.UsageDate == today)
                     .Select(u => u.QuestionCount)
                     .FirstOrDefaultAsync();
@@ -42,7 +42,7 @@ namespace ServiceLayer.Services
             var documentsUsed = await CountAccessibleDocumentsAsync(userId);
             var subjectsUsed = await CountAccessibleSubjectsAsync(userId);
             var membersUsed = organizationId.HasValue
-                ? await _context.OrganizationMembers.CountAsync(m => m.OrganizationId == organizationId.Value)
+                ? await _repository.OrganizationMembers.CountAsync(m => m.OrganizationId == organizationId.Value)
                 : 0;
 
             var bypassesQuota = await _accessControl.IsAdminAsync();
@@ -104,7 +104,7 @@ namespace ServiceLayer.Services
             var organizationId = await GetCurrentOrganizationIdAsync();
             if (organizationId.HasValue)
             {
-                var orgPlan = await _context.OrganizationSubscriptions
+                var orgPlan = await _repository.OrganizationSubscriptions
                     .Include(s => s.Plan)
                     .Where(s => s.OrganizationId == organizationId.Value && s.IsActive && (s.EndDate == null || s.EndDate > DateTime.UtcNow))
                     .OrderByDescending(s => s.StartDate)
@@ -115,7 +115,7 @@ namespace ServiceLayer.Services
                     return orgPlan;
             }
 
-            return await _context.SubscriptionPlans.FirstAsync(p => p.Name == AuthConstants.Free);
+            return await _repository.SubscriptionPlans.FirstAsync(p => p.Name == AuthConstants.Free);
         }
 
         private async Task<int> CountAccessibleDocumentsAsync(string userId)
@@ -125,12 +125,12 @@ namespace ServiceLayer.Services
 
             var organizationId = await GetCurrentOrganizationIdAsync();
             if (organizationId.HasValue)
-                return await _context.Documents.CountAsync(d => d.Subject != null && d.Subject.OrganizationId == organizationId.Value);
+                return await _repository.Documents.CountAsync(d => d.Subject != null && d.Subject.OrganizationId == organizationId.Value);
 
             if (await _accessControl.IsAdminAsync())
-                return await _context.Documents.CountAsync();
+                return await _repository.Documents.CountAsync();
 
-            return await _context.Documents.CountAsync(d => d.UploadedByUserId == userId);
+            return await _repository.Documents.CountAsync(d => d.UploadedByUserId == userId);
         }
 
         private async Task<int> CountAccessibleSubjectsAsync(string userId)
@@ -140,12 +140,12 @@ namespace ServiceLayer.Services
 
             var organizationId = await GetCurrentOrganizationIdAsync();
             if (organizationId.HasValue)
-                return await _context.Subjects.CountAsync(s => s.OrganizationId == organizationId.Value);
+                return await _repository.Subjects.CountAsync(s => s.OrganizationId == organizationId.Value);
 
             if (await _accessControl.IsAdminAsync())
-                return await _context.Subjects.CountAsync();
+                return await _repository.Subjects.CountAsync();
 
-            return await _context.SubjectMemberships
+            return await _repository.SubjectMemberships
                 .Where(m => m.UserId == userId &&
                     (m.RoleInSubject == AuthConstants.Lecturer ||
                      m.RoleInSubject == AuthConstants.SubjectLead))
@@ -162,14 +162,14 @@ namespace ServiceLayer.Services
 
             if (await _accessControl.IsAdminAsync())
             {
-                return await _context.Organizations
+                return await _repository.Organizations
                     .Where(o => o.IsActive)
                     .OrderBy(o => o.Id)
                     .Select(o => (int?)o.Id)
                     .FirstOrDefaultAsync();
             }
 
-            return await _context.OrganizationMembers
+            return await _repository.OrganizationMembers
                 .Where(m => m.UserId == userId && m.Organization!.IsActive)
                 .OrderBy(m => m.OrganizationId)
                 .Select(m => (int?)m.OrganizationId)
@@ -177,3 +177,4 @@ namespace ServiceLayer.Services
         }
     }
 }
+

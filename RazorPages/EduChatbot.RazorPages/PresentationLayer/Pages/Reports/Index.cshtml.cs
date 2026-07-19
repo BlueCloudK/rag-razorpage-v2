@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using ServiceLayer.Models;
+using ServiceLayer.Dtos;
 using ServiceLayer.Services;
 
 namespace PresentationLayer.Pages.Reports;
@@ -22,6 +22,9 @@ public class IndexModel : PageModel
     [BindProperty(SupportsGet = true)]
     public int Days { get; set; } = 30;
 
+    [BindProperty(SupportsGet = true)]
+    public bool Demo { get; set; }
+
     public int MaxDailyTokens => Math.Max(Report.DailyUsages.DefaultIfEmpty().Max(day => day?.TotalTokens ?? 0), 1);
 
     public bool HasUsage => Report.CompletedQuestionCount > 0 || Report.TotalTokens > 0;
@@ -31,6 +34,6 @@ public class IndexModel : PageModel
         Days = AllowedDayRanges.Contains(Days) ? Days : 30;
         var endDate = DateTime.UtcNow;
         var startDate = endDate.Date.AddDays(-(Days - 1));
-        Report = await _usageReportService.GetUsageReportAsync(startDate, endDate);
+        Report = await _usageReportService.GetUsageReportAsync(startDate, endDate, Demo);
     }
 }

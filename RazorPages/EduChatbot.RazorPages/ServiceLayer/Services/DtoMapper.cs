@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
-using DataAccessLayer.Models;
-using ServiceLayer.Models;
+using DataAccessLayer.Entities;
+using ServiceLayer.Dtos;
 
 namespace ServiceLayer.Services
 {
@@ -65,6 +65,7 @@ namespace ServiceLayer.Services
                 Role = message.Role,
                 Content = message.Content,
                 SourceDocuments = message.SourceDocuments ?? string.Empty,
+                ProcessingTraceJson = message.ProcessingTraceJson ?? string.Empty,
                 Timestamp = message.Timestamp
             };
         }

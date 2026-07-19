@@ -1,5 +1,6 @@
 using DataAccessLayer.Data;
-using DataAccessLayer.Models;
+using DataAccessLayer.Entities;
+using DataAccessLayer.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +16,7 @@ namespace ServiceLayer.Services
         {
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
+            services.AddScoped<IDataRepository, EfDataRepository>();
 
             services.AddIdentity<ApplicationUser, IdentityRole>(options =>
                 {

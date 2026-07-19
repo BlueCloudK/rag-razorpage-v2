@@ -5,19 +5,27 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using DataAccessLayer.Data;
-using DataAccessLayer.Models;
+using DataAccessLayer.Repositories;
+using DataAccessLayer.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using ServiceLayer.Models;
+using Microsoft.Extensions.Configuration;
+using ServiceLayer.Dtos;
+using ServiceLayer.Options;
 
 namespace ServiceLayer.Services
 {
     public class ChatService : IChatService
     {
-        private readonly ApplicationDbContext _context;
+        private static readonly JsonSerializerOptions TraceJsonOptions = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+
+        private readonly IDataRepository _repository;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IAccessControlService _accessControl;
         private readonly ICurrentUserService _currentUser;
@@ -26,9 +34,10 @@ namespace ServiceLayer.Services
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IAuditLogService _auditLogService;
         private readonly IRealtimeNotificationService _realtime;
+        private readonly ChatTokenLimitOptions _tokenLimits;
 
         public ChatService(
-            ApplicationDbContext context,
+            IDataRepository context,
             IHttpClientFactory httpClientFactory,
             IAccessControlService accessControl,
             ICurrentUserService currentUser,
@@ -36,9 +45,10 @@ namespace ServiceLayer.Services
             IUsageService usageService,
             UserManager<ApplicationUser> userManager,
             IAuditLogService auditLogService,
-            IRealtimeNotificationService realtime)
+            IRealtimeNotificationService realtime,
+            IConfiguration configuration)
         {
-            _context = context;
+            _repository = context;
             _httpClientFactory = httpClientFactory;
             _accessControl = accessControl;
             _currentUser = currentUser;
@@ -47,6 +57,7 @@ namespace ServiceLayer.Services
             _userManager = userManager;
             _auditLogService = auditLogService;
             _realtime = realtime;
+            _tokenLimits = ChatTokenLimitOptions.FromConfiguration(configuration);
         }
 
         public async Task<ChatPageDto?> GetChatPageAsync(int subjectId, int? sessionId = null)
@@ -58,18 +69,18 @@ namespace ServiceLayer.Services
             if (string.IsNullOrEmpty(userId))
                 return null;
 
-            var subject = await _context.Subjects.FindAsync(subjectId);
+            var subject = await _repository.Subjects.FindAsync(subjectId);
             if (subject == null)
                 return null;
 
             var session = await FindSessionAsync(subjectId, userId, sessionId);
 
-            var documents = await _context.Documents
+            var documents = await _repository.Documents
                 .Where(d => d.SubjectId == subjectId)
                 .OrderByDescending(d => d.UploadedAt)
                 .ToListAsync();
 
-            var members = await _context.SubjectMemberships
+            var members = await _repository.SubjectMemberships
                 .Include(m => m.Subject)
                 .Include(m => m.User)
                 .Where(m => m.SubjectId == subjectId)
@@ -93,11 +104,11 @@ namespace ServiceLayer.Services
                 member.IsSystemAdmin = memberUser != null && await _userManager.IsInRoleAsync(memberUser, AuthConstants.Admin);
             }
 
-            var availableMembers = await _context.OrganizationMembers
+            var availableMembers = await _repository.OrganizationMembers
                 .Include(m => m.User)
                 .Where(m => m.OrganizationId == subject.OrganizationId)
                 .Where(m => m.UserId != userId)
-                .Where(m => !_context.SubjectMemberships.Any(sm =>
+                .Where(m => !_repository.SubjectMemberships.Any(sm =>
                     sm.SubjectId == subjectId &&
                     sm.UserId == m.UserId))
                 .OrderBy(m => m.User!.Email)
@@ -173,12 +184,12 @@ namespace ServiceLayer.Services
             if (duplicateTurn != null)
                 return duplicateTurn;
 
-            var indexedDocuments = await _context.Documents
+            var indexedDocuments = await _repository.Documents
                 .Where(d => d.SubjectId == subjectId && d.IsIndexed)
                 .Select(d => new { d.Id, d.FileName })
                 .ToListAsync();
 
-            var processingDocuments = await _context.Documents.CountAsync(d =>
+            var processingDocuments = await _repository.Documents.CountAsync(d =>
                 d.SubjectId == subjectId &&
                 !d.IsIndexed &&
                 d.IndexStatus != "Failed");
@@ -192,12 +203,11 @@ namespace ServiceLayer.Services
                 return new ChatSendResult { Success = false, StatusCode = 409, Message = waitMessage };
             }
 
-            var recentHistory = (session.Messages ?? Enumerable.Empty<ChatMessage>())
-                .OrderBy(m => m.Timestamp)
-                .TakeLast(6)
-                .Select(m => new { role = m.Role, content = m.Content })
-                .ToList();
-            var subjectMemory = await BuildSubjectMemoryAsync(subjectId, userId, session.Id);
+            var rawSubjectMemory = await BuildSubjectMemoryAsync(subjectId, userId, session.Id);
+            if (!TryBuildPromptContext(session.Messages ?? Enumerable.Empty<ChatMessage>(), content, rawSubjectMemory, out var recentHistory, out var subjectMemory, out var tokenLimitError))
+            {
+                return new ChatSendResult { Success = false, StatusCode = 400, Message = tokenLimitError };
+            }
 
             var userMsg = new ChatMessage
             {
@@ -294,25 +304,26 @@ namespace ServiceLayer.Services
                 Role = "Bot",
                 Content = answer,
                 SourceDocuments = sourceDocs,
+                ProcessingTraceJson = SerializeTrace(trace),
                 Timestamp = DateTime.UtcNow
             };
 
-            _context.ChatMessages.Add(userMsg);
-            _context.ChatMessages.Add(botMsg);
-            await _context.SaveChangesAsync(cancellationToken);
+            _repository.ChatMessages.Add(userMsg);
+            _repository.ChatMessages.Add(botMsg);
+            await _repository.SaveChangesAsync(cancellationToken);
             await _usageService.IncrementQuestionCountAsync();
             await _auditLogService.RecordAsync("AskQuestion", "ChatSession", session.Id, subjectId, null, "User asked a question in a subject chat.");
 
             if (!hasNativeUsage)
             {
-                var historyText = string.Join(" ", recentHistory.Select(item => $"{item.role}: {item.content}"));
+                var historyText = string.Join(" ", recentHistory.Select(item => $"{item.Role}: {item.Content}"));
                 inputTokens = EstimateTokens(content) + EstimateTokens(historyText) + EstimateTokens(subjectMemory);
                 outputTokens = EstimateTokens(answer);
                 totalTokens = inputTokens + retrievedContextTokens + outputTokens;
             }
 
             var subjectOrgId = session.Subject?.OrganizationId ?? 
-                await _context.Subjects.Where(s => s.Id == subjectId).Select(s => s.OrganizationId).FirstOrDefaultAsync(cancellationToken);
+                await _repository.Subjects.Where(s => s.Id == subjectId).Select(s => s.OrganizationId).FirstOrDefaultAsync(cancellationToken);
 
             await _usageService.RecordTokenUsageAsync(new TokenUsageRecordInput
             {
@@ -359,12 +370,12 @@ namespace ServiceLayer.Services
             if (duplicateTurn != null)
                 return duplicateTurn;
 
-            var indexedDocuments = await _context.Documents
+            var indexedDocuments = await _repository.Documents
                 .Where(d => d.SubjectId == subjectId && d.IsIndexed)
                 .Select(d => new { d.Id, d.FileName })
                 .ToListAsync(cancellationToken);
 
-            var processingDocuments = await _context.Documents.CountAsync(d =>
+            var processingDocuments = await _repository.Documents.CountAsync(d =>
                 d.SubjectId == subjectId &&
                 !d.IsIndexed &&
                 d.IndexStatus != "Failed",
@@ -379,12 +390,11 @@ namespace ServiceLayer.Services
                 return new ChatSendResult { Success = false, StatusCode = 409, Message = waitMessage };
             }
 
-            var recentHistory = (session.Messages ?? Enumerable.Empty<ChatMessage>())
-                .OrderBy(m => m.Timestamp)
-                .TakeLast(6)
-                .Select(m => new { role = m.Role, content = m.Content })
-                .ToList();
-            var subjectMemory = await BuildSubjectMemoryAsync(subjectId, userId, session.Id);
+            var rawSubjectMemory = await BuildSubjectMemoryAsync(subjectId, userId, session.Id);
+            if (!TryBuildPromptContext(session.Messages ?? Enumerable.Empty<ChatMessage>(), content, rawSubjectMemory, out var recentHistory, out var subjectMemory, out var tokenLimitError))
+            {
+                return new ChatSendResult { Success = false, StatusCode = 400, Message = tokenLimitError };
+            }
 
             var userMsg = new ChatMessage
             {
@@ -550,25 +560,26 @@ namespace ServiceLayer.Services
                 Role = "Bot",
                 Content = answer,
                 SourceDocuments = sourceDocs,
+                ProcessingTraceJson = SerializeTrace(trace),
                 Timestamp = DateTime.UtcNow
             };
 
-            _context.ChatMessages.Add(userMsg);
-            _context.ChatMessages.Add(botMsg);
-            await _context.SaveChangesAsync(cancellationToken);
+            _repository.ChatMessages.Add(userMsg);
+            _repository.ChatMessages.Add(botMsg);
+            await _repository.SaveChangesAsync(cancellationToken);
             await _usageService.IncrementQuestionCountAsync();
             await _auditLogService.RecordAsync("AskQuestion", "ChatSession", session.Id, subjectId, null, "User asked a question in a subject chat.");
 
             if (!hasNativeUsage)
             {
-                var historyText = string.Join(" ", recentHistory.Select(item => $"{item.role}: {item.content}"));
+                var historyText = string.Join(" ", recentHistory.Select(item => $"{item.Role}: {item.Content}"));
                 inputTokens = EstimateTokens(content) + EstimateTokens(historyText) + EstimateTokens(subjectMemory);
                 outputTokens = EstimateTokens(answer);
                 totalTokens = inputTokens + retrievedContextTokens + outputTokens;
             }
 
             var subjectOrgId = session.Subject?.OrganizationId ?? 
-                await _context.Subjects.Where(s => s.Id == subjectId).Select(s => s.OrganizationId).FirstOrDefaultAsync(cancellationToken);
+                await _repository.Subjects.Where(s => s.Id == subjectId).Select(s => s.OrganizationId).FirstOrDefaultAsync(cancellationToken);
 
             await _usageService.RecordTokenUsageAsync(new TokenUsageRecordInput
             {
@@ -622,6 +633,73 @@ namespace ServiceLayer.Services
             return 0;
         }
 
+        private bool TryBuildPromptContext(
+            IEnumerable<ChatMessage> messages,
+            string question,
+            string subjectMemory,
+            out List<ChatHistoryItem> history,
+            out string boundedSubjectMemory,
+            out string error)
+        {
+            history = new List<ChatHistoryItem>();
+            boundedSubjectMemory = string.Empty;
+            error = string.Empty;
+
+            var questionTokens = EstimateTokens(question);
+            if (questionTokens > _tokenLimits.MaxPromptTokens)
+            {
+                error = $"Your question is about {questionTokens:N0} tokens. The per-question prompt limit is {_tokenLimits.MaxPromptTokens:N0} tokens. Please shorten it and try again.";
+                return false;
+            }
+
+            var remainingTokens = _tokenLimits.MaxPromptTokens - questionTokens;
+            var recentTurns = messages
+                .OrderBy(message => message.Timestamp)
+                .TakeLast(6)
+                .Select(message => new ChatHistoryItem(message.Role, message.Content))
+                .Reverse()
+                .ToList();
+
+            foreach (var turn in recentTurns)
+            {
+                if (remainingTokens <= 0)
+                    break;
+
+                var turnTokens = EstimateTokens(turn.Content);
+                var boundedContent = turnTokens <= remainingTokens
+                    ? turn.Content
+                    : TrimToEstimatedTokenLimit(turn.Content, remainingTokens);
+
+                if (string.IsNullOrWhiteSpace(boundedContent))
+                    break;
+
+                history.Add(new ChatHistoryItem(turn.Role, boundedContent));
+                remainingTokens -= EstimateTokens(boundedContent);
+            }
+
+            history.Reverse();
+            boundedSubjectMemory = TrimToEstimatedTokenLimit(subjectMemory, remainingTokens);
+            return true;
+        }
+
+        private static string TrimToEstimatedTokenLimit(string? value, int maxTokens)
+        {
+            if (string.IsNullOrWhiteSpace(value) || maxTokens <= 0)
+                return string.Empty;
+
+            var maxChars = Math.Max(0, maxTokens * 4);
+            if (value.Length <= maxChars)
+                return value;
+
+            var bounded = value[..maxChars];
+            var lastWhitespace = bounded.LastIndexOfAny([' ', '\n', '\r', '\t']);
+            return (lastWhitespace > maxChars / 2 ? bounded[..lastWhitespace] : bounded).Trim();
+        }
+
+        private sealed record ChatHistoryItem(
+            [property: JsonPropertyName("role")] string Role,
+            [property: JsonPropertyName("content")] string Content);
+
         private static int EstimateTokens(string? value)
         {
             if (string.IsNullOrWhiteSpace(value))
@@ -670,6 +748,26 @@ namespace ServiceLayer.Services
             return trace;
         }
 
+        private static string SerializeTrace(ChatTraceDto trace)
+        {
+            return JsonSerializer.Serialize(trace, TraceJsonOptions);
+        }
+
+        private static ChatTraceDto ReadStoredTrace(string? traceJson)
+        {
+            if (string.IsNullOrWhiteSpace(traceJson))
+                return new ChatTraceDto();
+
+            try
+            {
+                return JsonSerializer.Deserialize<ChatTraceDto>(traceJson, TraceJsonOptions) ?? new ChatTraceDto();
+            }
+            catch (JsonException)
+            {
+                return new ChatTraceDto();
+            }
+        }
+
         private static string ReadString(JsonElement element, string name)
         {
             return element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
@@ -713,7 +811,7 @@ namespace ServiceLayer.Services
             if (string.IsNullOrEmpty(userId))
                 return null;
 
-            var subjectExists = await _context.Subjects.AnyAsync(s => s.Id == subjectId);
+            var subjectExists = await _repository.Subjects.AnyAsync(s => s.Id == subjectId);
             if (!subjectExists)
                 return null;
 
@@ -730,7 +828,7 @@ namespace ServiceLayer.Services
             if (string.IsNullOrEmpty(userId))
                 return false;
 
-            var session = await _context.ChatSessions
+            var session = await _repository.ChatSessions
                 .Include(s => s.Messages)
                 .FirstOrDefaultAsync(s => s.Id == sessionId && s.SubjectId == subjectId && s.UserId == userId);
 
@@ -738,16 +836,16 @@ namespace ServiceLayer.Services
                 return false;
 
             if (session.Messages?.Any() == true)
-                _context.ChatMessages.RemoveRange(session.Messages);
+                _repository.ChatMessages.RemoveRange(session.Messages);
 
-            var tokenUsages = await _context.TokenUsages
+            var tokenUsages = await _repository.TokenUsages
                 .Where(u => u.ChatSessionId == session.Id)
                 .ToListAsync();
             if (tokenUsages.Any())
-                _context.TokenUsages.RemoveRange(tokenUsages);
+                _repository.TokenUsages.RemoveRange(tokenUsages);
 
-            _context.ChatSessions.Remove(session);
-            await _context.SaveChangesAsync();
+            _repository.ChatSessions.Remove(session);
+            await _repository.SaveChangesAsync();
             return true;
         }
 
@@ -772,17 +870,17 @@ namespace ServiceLayer.Services
             if (string.IsNullOrEmpty(roleInSubject))
                 return false;
 
-            var subject = await _context.Subjects.FindAsync(subjectId);
+            var subject = await _repository.Subjects.FindAsync(subjectId);
             if (subject == null)
                 return false;
 
-            var belongsToOrganization = await _context.OrganizationMembers.AnyAsync(m =>
+            var belongsToOrganization = await _repository.OrganizationMembers.AnyAsync(m =>
                 m.OrganizationId == subject.OrganizationId &&
                 m.UserId == userId);
             if (!belongsToOrganization)
                 return false;
 
-            var exists = await _context.SubjectMemberships.AnyAsync(m =>
+            var exists = await _repository.SubjectMemberships.AnyAsync(m =>
                 m.SubjectId == subjectId &&
                 m.UserId == userId);
             if (exists)
@@ -791,13 +889,13 @@ namespace ServiceLayer.Services
             if (roleInSubject == AuthConstants.SubjectLead)
                 await DemoteExistingSubjectLeadAsync(subjectId);
 
-            _context.SubjectMemberships.Add(new SubjectMembership
+            _repository.SubjectMemberships.Add(new SubjectMembership
             {
                 SubjectId = subjectId,
                 UserId = userId,
                 RoleInSubject = roleInSubject
             });
-            await _context.SaveChangesAsync();
+            await _repository.SaveChangesAsync();
             await _auditLogService.RecordAsync("AddMember", "SubjectMembership", null, subjectId, null, $"Added {targetUser.Email} as {roleInSubject}.");
             await _realtime.MembershipChangedAsync("added", subjectId, userId);
             return true;
@@ -812,7 +910,7 @@ namespace ServiceLayer.Services
             if (!currentUserIsAdmin)
                 return false;
 
-            var membership = await _context.SubjectMemberships
+            var membership = await _repository.SubjectMemberships
                 .Include(m => m.User)
                 .FirstOrDefaultAsync(m => m.Id == membershipId && m.SubjectId == subjectId);
             if (membership == null || membership.User == null)
@@ -829,7 +927,7 @@ namespace ServiceLayer.Services
                 await DemoteExistingSubjectLeadAsync(subjectId, membership.Id);
 
             membership.RoleInSubject = resolvedRole;
-            await _context.SaveChangesAsync();
+            await _repository.SaveChangesAsync();
             await _auditLogService.RecordAsync("UpdateMemberRole", "SubjectMembership", membership.Id, subjectId, null, $"Updated subject membership for {membership.User.Email} to {resolvedRole}.");
             await _realtime.MembershipChangedAsync("updated", subjectId, membership.UserId);
             return true;
@@ -840,7 +938,7 @@ namespace ServiceLayer.Services
             if (!await _accessControl.CanManageSubjectAsync(subjectId))
                 return false;
 
-            var membership = await _context.SubjectMemberships
+            var membership = await _repository.SubjectMemberships
                 .FirstOrDefaultAsync(m => m.Id == membershipId && m.SubjectId == subjectId);
             if (membership == null)
                 return false;
@@ -857,8 +955,8 @@ namespace ServiceLayer.Services
             if (targetIsAdmin && !currentUserIsAdmin)
                 return false;
 
-            _context.SubjectMemberships.Remove(membership);
-            await _context.SaveChangesAsync();
+            _repository.SubjectMemberships.Remove(membership);
+            await _repository.SaveChangesAsync();
             await _auditLogService.RecordAsync("RemoveMember", "SubjectMembership", membership.Id, subjectId, null, $"Removed subject membership for {targetUser?.Email ?? membership.UserId}.");
             await _realtime.MembershipChangedAsync("removed", subjectId, membership.UserId);
             return true;
@@ -886,7 +984,7 @@ namespace ServiceLayer.Services
 
         private async Task DemoteExistingSubjectLeadAsync(int subjectId, int? exceptMembershipId = null)
         {
-            var currentLeads = await _context.SubjectMemberships
+            var currentLeads = await _repository.SubjectMemberships
                 .Where(m => m.SubjectId == subjectId && m.RoleInSubject == AuthConstants.SubjectLead)
                 .Where(m => exceptMembershipId == null || m.Id != exceptMembershipId)
                 .ToListAsync();
@@ -901,13 +999,13 @@ namespace ServiceLayer.Services
         {
             if (sessionId.HasValue && sessionId.Value > 0)
             {
-                return await _context.ChatSessions
+                return await _repository.ChatSessions
                     .Include(s => s.Subject)
                     .Include(s => s.Messages)
                     .FirstOrDefaultAsync(s => s.Id == sessionId.Value && s.SubjectId == subjectId && s.UserId == userId);
             }
 
-            var sessions = await _context.ChatSessions
+            var sessions = await _repository.ChatSessions
                 .Include(s => s.Messages)
                 .Where(s => s.SubjectId == subjectId && s.UserId == userId)
                 .ToListAsync();
@@ -921,7 +1019,7 @@ namespace ServiceLayer.Services
             if (selectedId == 0)
                 return null;
 
-            return await _context.ChatSessions
+            return await _repository.ChatSessions
                 .Include(s => s.Subject)
                 .Include(s => s.Messages)
                 .FirstAsync(s => s.Id == selectedId);
@@ -936,10 +1034,10 @@ namespace ServiceLayer.Services
                 CreatedAt = DateTime.UtcNow,
                 Messages = new List<ChatMessage>()
             };
-            _context.ChatSessions.Add(session);
-            await _context.SaveChangesAsync();
+            _repository.ChatSessions.Add(session);
+            await _repository.SaveChangesAsync();
 
-            return await _context.ChatSessions
+            return await _repository.ChatSessions
                 .Include(s => s.Subject)
                 .Include(s => s.Messages)
                 .FirstAsync(s => s.Id == session.Id);
@@ -981,7 +1079,7 @@ namespace ServiceLayer.Services
                     SessionId = session.Id,
                     User = message.ToDto(),
                     Bot = bot.ToDto(),
-                    Trace = new ChatTraceDto()
+                    Trace = ReadStoredTrace(bot.ProcessingTraceJson)
                 };
             }
 
@@ -990,7 +1088,7 @@ namespace ServiceLayer.Services
 
         private async Task<List<ChatSessionSummaryDto>> GetSessionSummariesAsync(int subjectId, string userId, int? activeSessionId)
         {
-            var sessions = await _context.ChatSessions
+            var sessions = await _repository.ChatSessions
                 .Include(s => s.Messages)
                 .Where(s => s.SubjectId == subjectId && s.UserId == userId)
                 .ToListAsync();
@@ -1024,7 +1122,7 @@ namespace ServiceLayer.Services
             const int maxMessageLength = 600;
             const int maxMemoryLength = 6000;
 
-            var previousMessages = await _context.ChatMessages
+            var previousMessages = await _repository.ChatMessages
                 .Where(m =>
                     m.Session != null &&
                     m.Session.SubjectId == subjectId &&
@@ -1048,7 +1146,7 @@ namespace ServiceLayer.Services
             if (content.Length > maxMemoryLength)
                 content = content[^maxMemoryLength..];
 
-            var memory = await _context.SubjectUserMemories
+            var memory = await _repository.SubjectUserMemories
                 .FirstOrDefaultAsync(m => m.SubjectId == subjectId && m.UserId == userId);
 
             if (memory == null)
@@ -1063,7 +1161,7 @@ namespace ServiceLayer.Services
                     Content = content,
                     UpdatedAt = DateTime.UtcNow
                 };
-                _context.SubjectUserMemories.Add(memory);
+                _repository.SubjectUserMemories.Add(memory);
             }
             else
             {
@@ -1071,7 +1169,7 @@ namespace ServiceLayer.Services
                 memory.UpdatedAt = DateTime.UtcNow;
             }
 
-            await _context.SaveChangesAsync();
+            await _repository.SaveChangesAsync();
             return content;
         }
 
@@ -1094,3 +1192,4 @@ namespace ServiceLayer.Services
         }
     }
 }
+

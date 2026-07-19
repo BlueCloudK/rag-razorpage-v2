@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using ServiceLayer.Models;
+using ServiceLayer.Dtos;
 using ServiceLayer.Services;
 
 namespace PresentationLayer.Pages.Admin;

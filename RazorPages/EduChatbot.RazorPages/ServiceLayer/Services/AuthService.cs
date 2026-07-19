@@ -1,24 +1,24 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using DataAccessLayer.Data;
-using DataAccessLayer.Models;
+using DataAccessLayer.Repositories;
+using DataAccessLayer.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using ServiceLayer.Models;
+using ServiceLayer.Dtos;
 
 namespace ServiceLayer.Services
 {
     public class AuthService : IAuthService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IDataRepository _repository;
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IAuditLogService _auditLogService;
 
-        public AuthService(ApplicationDbContext context, SignInManager<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager, IAuditLogService auditLogService)
+        public AuthService(IDataRepository context, SignInManager<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager, IAuditLogService auditLogService)
         {
-            _context = context;
+            _repository = context;
             _signInManager = signInManager;
             _userManager = userManager;
             _auditLogService = auditLogService;
@@ -79,21 +79,22 @@ namespace ServiceLayer.Services
 
         private async Task EnsureDefaultOrganizationMembershipAsync(string userId, string role)
         {
-            var organization = await _context.Organizations.OrderBy(o => o.Id).FirstOrDefaultAsync(o => o.IsActive);
+            var organization = await _repository.Organizations.OrderBy(o => o.Id).FirstOrDefaultAsync(o => o.IsActive);
             if (organization == null)
                 return;
 
-            var exists = await _context.OrganizationMembers.AnyAsync(m => m.OrganizationId == organization.Id && m.UserId == userId);
+            var exists = await _repository.OrganizationMembers.AnyAsync(m => m.OrganizationId == organization.Id && m.UserId == userId);
             if (exists)
                 return;
 
-            _context.OrganizationMembers.Add(new OrganizationMember
+            _repository.OrganizationMembers.Add(new OrganizationMember
             {
                 OrganizationId = organization.Id,
                 UserId = userId,
                 RoleInOrganization = role
             });
-            await _context.SaveChangesAsync();
+            await _repository.SaveChangesAsync();
         }
     }
 }
+

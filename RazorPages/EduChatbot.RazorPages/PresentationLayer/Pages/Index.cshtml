@@ -3,7 +3,7 @@
 @using ServiceLayer.Services
 @{
     Layout = null;
-    var subjects = Model.Subjects?.ToList() ?? new List<ServiceLayer.Models.SubjectDto>();
+    var subjects = Model.Subjects?.ToList() ?? new List<ServiceLayer.Dtos.SubjectDto>();
     var dashboard = Model.Dashboard;
     var organization = dashboard?.Organization;
     var plan = Model.Subscription;

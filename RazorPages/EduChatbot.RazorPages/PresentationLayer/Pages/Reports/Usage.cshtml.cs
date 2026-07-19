@@ -3,7 +3,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using ServiceLayer.Models;
+using ServiceLayer.Dtos;
 using ServiceLayer.Services;
 
 namespace PresentationLayer.Pages.Reports;
@@ -22,12 +22,15 @@ public class UsageModel : PageModel
     [BindProperty(SupportsGet = true)]
     public int Days { get; set; } = 30;
 
+    [BindProperty(SupportsGet = true)]
+    public bool Demo { get; set; }
+
     public UsageReportDto Report { get; private set; } = new();
 
     public Task<IActionResult> OnGetAsync()
     {
         Days = AllowedDayRanges.Contains(Days) ? Days : 30;
-        return Task.FromResult<IActionResult>(RedirectToPage("/Reports/Index", new { Days }));
+        return Task.FromResult<IActionResult>(RedirectToPage("/Reports/Index", new { Days, Demo }));
     }
 
     public async Task<IActionResult> OnGetExportCsvAsync()
@@ -39,6 +42,7 @@ public class UsageModel : PageModel
             "Report type",
             "Name",
             "Code or email",
+            "Subject",
             "Role",
             "Questions",
             "Input tokens",
@@ -55,6 +59,7 @@ public class UsageModel : PageModel
                     "User",
                     user.UserName,
                     user.Email,
+                    null,
                     user.SystemRole,
                     user.QuestionCount,
                     user.InputTokens,
@@ -65,12 +70,34 @@ public class UsageModel : PageModel
             }
         }
 
+        if (Report.ScopeKind == "teaching")
+        {
+            foreach (var learner in Report.LearnerUsages)
+            {
+                AppendCsvRow(csv,
+                    "Learner",
+                    learner.UserName,
+                    learner.Email,
+                    string.IsNullOrWhiteSpace(learner.SubjectCode)
+                        ? learner.SubjectName
+                        : $"{learner.SubjectName} ({learner.SubjectCode})",
+                    "Student",
+                    learner.QuestionCount,
+                    null,
+                    null,
+                    null,
+                    learner.TotalTokens,
+                    null);
+            }
+        }
+
         foreach (var subject in Report.SubjectUsages)
         {
             AppendCsvRow(csv,
                 "Subject",
                 subject.SubjectName,
                 subject.SubjectCode,
+                null,
                 null,
                 subject.QuestionCount,
                 null,
@@ -97,7 +124,7 @@ public class UsageModel : PageModel
         Days = AllowedDayRanges.Contains(Days) ? Days : 30;
         var endDate = DateTime.UtcNow;
         var startDate = endDate.Date.AddDays(-(Days - 1));
-        Report = await _usageReportService.GetUsageReportAsync(startDate, endDate);
+        Report = await _usageReportService.GetUsageReportAsync(startDate, endDate, Demo);
     }
 
     private static void AppendCsvRow(StringBuilder csv, params object?[] values)

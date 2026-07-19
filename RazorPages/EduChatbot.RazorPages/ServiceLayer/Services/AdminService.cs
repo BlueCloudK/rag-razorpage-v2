@@ -1,28 +1,28 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using DataAccessLayer.Data;
-using DataAccessLayer.Models;
+using DataAccessLayer.Repositories;
+using DataAccessLayer.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using ServiceLayer.Models;
+using ServiceLayer.Dtos;
 
 namespace ServiceLayer.Services
 {
     public class AdminService : IAdminService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IDataRepository _repository;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IAuditLogService _auditLogService;
         private readonly IRealtimeNotificationService _realtime;
 
         public AdminService(
-            ApplicationDbContext context,
+            IDataRepository context,
             UserManager<ApplicationUser> userManager,
             IAuditLogService auditLogService,
             IRealtimeNotificationService realtime)
         {
-            _context = context;
+            _repository = context;
             _userManager = userManager;
             _auditLogService = auditLogService;
             _realtime = realtime;
@@ -39,7 +39,7 @@ namespace ServiceLayer.Services
             foreach (var user in users)
             {
                 var roles = await _userManager.GetRolesAsync(user);
-                var organizationRole = await _context.OrganizationMembers
+                var organizationRole = await _repository.OrganizationMembers
                     .Where(m => m.UserId == user.Id)
                     .OrderBy(m => m.OrganizationId)
                     .Select(m => m.RoleInOrganization)
@@ -85,7 +85,7 @@ namespace ServiceLayer.Services
 
             await _userManager.AddToRoleAsync(user, role);
             await EnsureOrganizationMembershipAsync(user.Id, role);
-            await _context.SaveChangesAsync();
+            await _repository.SaveChangesAsync();
             await _auditLogService.RecordAsync("CreateUser", "Account", null, null, null, $"Created {role} account {user.Email}.");
             await _realtime.AdminChangedAsync("users_changed");
             return new AuthResult { Success = true, Message = "User created." };
@@ -104,7 +104,7 @@ namespace ServiceLayer.Services
 
             await _userManager.AddToRoleAsync(user, role);
             await EnsureOrganizationMembershipAsync(user.Id, role);
-            await _context.SaveChangesAsync();
+            await _repository.SaveChangesAsync();
             await _auditLogService.RecordAsync("UpdateUserRole", "Account", null, null, null, $"Changed {user.Email} role to {role}.");
             await _realtime.AdminChangedAsync("users_changed");
         }
@@ -112,7 +112,7 @@ namespace ServiceLayer.Services
         public async Task<AdminMembershipManagementDto> GetMembershipsAsync()
         {
             var users = await GetUsersAsync();
-            var memberships = await _context.SubjectMemberships
+            var memberships = await _repository.SubjectMemberships
                 .Include(m => m.Subject)
                 .Include(m => m.User)
                 .OrderBy(m => m.Subject!.Name)
@@ -137,14 +137,14 @@ namespace ServiceLayer.Services
             return new AdminMembershipManagementDto
             {
                 Memberships = memberships,
-                Subjects = await _context.Subjects.OrderBy(s => s.Name).Select(s => new AdminSubjectOptionDto { Id = s.Id, Name = s.Name }).ToListAsync(),
+                Subjects = await _repository.Subjects.OrderBy(s => s.Name).Select(s => new AdminSubjectOptionDto { Id = s.Id, Name = s.Name }).ToListAsync(),
                 Users = users.Users.Where(u => u.Role != AuthConstants.Admin).ToList()
             };
         }
 
         public async Task AddMembershipAsync(AdminMembershipInput input)
         {
-            var subject = await _context.Subjects.FindAsync(input.SubjectId);
+            var subject = await _repository.Subjects.FindAsync(input.SubjectId);
             var user = await _userManager.FindByIdAsync(input.UserId);
             if (subject == null || user == null || await _userManager.IsInRoleAsync(user, AuthConstants.Admin))
                 return;
@@ -158,7 +158,7 @@ namespace ServiceLayer.Services
                 AuthConstants.Student when isStudent => AuthConstants.Student,
                 _ => null
             };
-            var belongsToOrganization = await _context.OrganizationMembers.AnyAsync(m =>
+            var belongsToOrganization = await _repository.OrganizationMembers.AnyAsync(m =>
                 m.OrganizationId == subject.OrganizationId &&
                 m.UserId == input.UserId);
             if (roleInSubject == null || !belongsToOrganization)
@@ -166,7 +166,7 @@ namespace ServiceLayer.Services
 
             if (roleInSubject == AuthConstants.SubjectLead)
             {
-                var currentLeads = await _context.SubjectMemberships
+                var currentLeads = await _repository.SubjectMemberships
                     .Where(m =>
                         m.SubjectId == input.SubjectId &&
                         m.RoleInSubject == AuthConstants.SubjectLead &&
@@ -176,12 +176,12 @@ namespace ServiceLayer.Services
                     currentLead.RoleInSubject = AuthConstants.Lecturer;
             }
 
-            var membership = await _context.SubjectMemberships.FirstOrDefaultAsync(m =>
+            var membership = await _repository.SubjectMemberships.FirstOrDefaultAsync(m =>
                 m.SubjectId == input.SubjectId &&
                 m.UserId == input.UserId);
             if (membership == null)
             {
-                _context.SubjectMemberships.Add(new SubjectMembership
+                _repository.SubjectMemberships.Add(new SubjectMembership
                 {
                     SubjectId = input.SubjectId,
                     UserId = input.UserId,
@@ -192,39 +192,39 @@ namespace ServiceLayer.Services
             {
                 membership.RoleInSubject = roleInSubject;
             }
-            await _context.SaveChangesAsync();
+            await _repository.SaveChangesAsync();
             await _auditLogService.RecordAsync("AddMember", "SubjectMembership", null, input.SubjectId, null, $"Admin added user to subject as {roleInSubject}.");
             await _realtime.MembershipChangedAsync("added", input.SubjectId, input.UserId);
         }
 
         public async Task RemoveMembershipAsync(int membershipId)
         {
-            var membership = await _context.SubjectMemberships.FindAsync(membershipId);
+            var membership = await _repository.SubjectMemberships.FindAsync(membershipId);
             if (membership == null)
                 return;
 
             var subjectId = membership.SubjectId;
             var userId = membership.UserId;
-            _context.SubjectMemberships.Remove(membership);
-            await _context.SaveChangesAsync();
+            _repository.SubjectMemberships.Remove(membership);
+            await _repository.SaveChangesAsync();
             await _auditLogService.RecordAsync("RemoveMember", "SubjectMembership", membershipId, subjectId, null, "Admin removed a subject membership.");
             await _realtime.MembershipChangedAsync("removed", subjectId, userId);
         }
 
         private async Task EnsureOrganizationMembershipAsync(string userId, string role)
         {
-            var organization = await _context.Organizations
+            var organization = await _repository.Organizations
                 .Where(o => o.IsActive)
                 .OrderBy(o => o.Id)
                 .FirstOrDefaultAsync();
             if (organization == null)
                 return;
 
-            var membership = await _context.OrganizationMembers
+            var membership = await _repository.OrganizationMembers
                 .FirstOrDefaultAsync(m => m.OrganizationId == organization.Id && m.UserId == userId);
             if (membership == null)
             {
-                _context.OrganizationMembers.Add(new OrganizationMember
+                _repository.OrganizationMembers.Add(new OrganizationMember
                 {
                     OrganizationId = organization.Id,
                     UserId = userId,
@@ -246,3 +246,4 @@ namespace ServiceLayer.Services
         }
     }
 }
+

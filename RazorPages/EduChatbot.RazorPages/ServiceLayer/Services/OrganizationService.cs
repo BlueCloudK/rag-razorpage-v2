@@ -1,26 +1,26 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using DataAccessLayer.Data;
+using DataAccessLayer.Repositories;
 using Microsoft.EntityFrameworkCore;
-using ServiceLayer.Models;
+using ServiceLayer.Dtos;
 
 namespace ServiceLayer.Services
 {
     public class OrganizationService : IOrganizationService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IDataRepository _repository;
         private readonly ICurrentUserService _currentUser;
         private readonly IAccessControlService _accessControl;
         private readonly ISubscriptionService _subscriptionService;
 
         public OrganizationService(
-            ApplicationDbContext context,
+            IDataRepository context,
             ICurrentUserService currentUser,
             IAccessControlService accessControl,
             ISubscriptionService subscriptionService)
         {
-            _context = context;
+            _repository = context;
             _currentUser = currentUser;
             _accessControl = accessControl;
             _subscriptionService = subscriptionService;
@@ -34,7 +34,7 @@ namespace ServiceLayer.Services
 
             if (await _accessControl.IsAdminAsync())
             {
-                return await _context.Organizations
+                return await _repository.Organizations
                     .Where(o => o.IsActive)
                     .OrderBy(o => o.Id)
                     .Select(o => new OrganizationDto
@@ -47,7 +47,7 @@ namespace ServiceLayer.Services
                     .FirstOrDefaultAsync();
             }
 
-            return await _context.OrganizationMembers
+            return await _repository.OrganizationMembers
                 .Include(m => m.Organization)
                 .Where(m => m.UserId == userId && m.Organization!.IsActive)
                 .OrderBy(m => m.OrganizationId)
@@ -88,7 +88,7 @@ namespace ServiceLayer.Services
                 .OrderBy(s => s.Name)
                 .ToListAsync();
 
-            var documents = await _context.Documents
+            var documents = await _repository.Documents
                 .Include(d => d.Subject)
                 .Where(d => visibleSubjectIdsQuery.Contains(d.SubjectId))
                 .OrderByDescending(d => d.UploadedAt)
@@ -101,9 +101,9 @@ namespace ServiceLayer.Services
                 Subscription = await _subscriptionService.GetCurrentStatusAsync(),
                 Subjects = subjects.Select(s => s.ToDto(includeDocuments: true)).ToList(),
                 RecentDocuments = documents.Select(d => d.ToDto()).ToList(),
-                MemberCount = org == null ? 0 : await _context.OrganizationMembers.CountAsync(m => m.OrganizationId == org.Id),
+                MemberCount = org == null ? 0 : await _repository.OrganizationMembers.CountAsync(m => m.OrganizationId == org.Id),
                 IndexedDocumentCount = documents.Count(d => d.IsIndexed),
-                ProcessingDocumentCount = await _context.Documents.CountAsync(d => visibleSubjectIdsQuery.Contains(d.SubjectId) && !d.IsIndexed && d.IndexStatus != "Failed"),
+                ProcessingDocumentCount = await _repository.Documents.CountAsync(d => visibleSubjectIdsQuery.Contains(d.SubjectId) && !d.IsIndexed && d.IndexStatus != "Failed"),
                 CanManageOrganization = canManage,
                 CanCreateSubject = isAdmin && await _subscriptionService.CanCreateSubjectAsync()
             };
@@ -115,7 +115,7 @@ namespace ServiceLayer.Services
             if (org == null)
                 return new List<OrganizationMemberDto>();
 
-            return await _context.OrganizationMembers
+            return await _repository.OrganizationMembers
                 .Include(m => m.User)
                 .Where(m => m.OrganizationId == org.Id)
                 .OrderBy(m => m.User!.Email)
@@ -130,15 +130,15 @@ namespace ServiceLayer.Services
                 .ToListAsync();
         }
 
-        private IQueryable<DataAccessLayer.Models.Subject> BuildSubjectQuery(int? organizationId)
+        private IQueryable<DataAccessLayer.Entities.Subject> BuildSubjectQuery(int? organizationId)
         {
-            var query = _context.Subjects.AsQueryable();
+            var query = _repository.Subjects.AsQueryable();
             if (organizationId.HasValue)
                 query = query.Where(s => s.OrganizationId == organizationId.Value);
             return query;
         }
 
-        private IQueryable<DataAccessLayer.Models.Subject> BuildVisibleSubjectQuery(int? organizationId, bool isAdmin, string? userId)
+        private IQueryable<DataAccessLayer.Entities.Subject> BuildVisibleSubjectQuery(int? organizationId, bool isAdmin, string? userId)
         {
             var query = BuildSubjectQuery(organizationId);
 
@@ -148,9 +148,10 @@ namespace ServiceLayer.Services
             if (string.IsNullOrEmpty(userId))
                 return query.Where(_ => false);
 
-            return query.Where(s => _context.SubjectMemberships.Any(m =>
+            return query.Where(s => _repository.SubjectMemberships.Any(m =>
                 m.SubjectId == s.Id &&
                 m.UserId == userId));
         }
     }
 }
+

@@ -2,29 +2,29 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using DataAccessLayer.Data;
-using DataAccessLayer.Models;
+using DataAccessLayer.Repositories;
+using DataAccessLayer.Entities;
 using Microsoft.EntityFrameworkCore;
-using ServiceLayer.Models;
+using ServiceLayer.Dtos;
 
 namespace ServiceLayer.Services
 {
     public class BillingService : IBillingService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IDataRepository _repository;
         private readonly IOrganizationService _organizationService;
         private readonly ISubscriptionService _subscriptionService;
         private readonly IAuditLogService _auditLogService;
         private readonly IAccessControlService _accessControlService;
 
         public BillingService(
-            ApplicationDbContext context,
+            IDataRepository context,
             IOrganizationService organizationService,
             ISubscriptionService subscriptionService,
             IAuditLogService auditLogService,
             IAccessControlService accessControlService)
         {
-            _context = context;
+            _repository = context;
             _organizationService = organizationService;
             _subscriptionService = subscriptionService;
             _auditLogService = auditLogService;
@@ -34,7 +34,7 @@ namespace ServiceLayer.Services
         public async Task<List<PricingPlanDto>> GetPricingAsync()
         {
             var current = await _subscriptionService.GetCurrentStatusAsync();
-            var plans = await _context.SubscriptionPlans.OrderBy(p => p.Id).ToListAsync();
+            var plans = await _repository.SubscriptionPlans.OrderBy(p => p.Id).ToListAsync();
             return plans.Select(p => ToPricingDto(p, current.PlanName)).ToList();
         }
 
@@ -43,7 +43,7 @@ namespace ServiceLayer.Services
             var org = await _organizationService.GetCurrentOrganizationAsync();
             var invoices = org == null
                 ? new List<BillingInvoiceDto>()
-                : await _context.BillingInvoices
+                : await _repository.BillingInvoices
                     .Include(i => i.Plan)
                     .Where(i => i.OrganizationId == org.Id)
                     .OrderByDescending(i => i.CreatedAt)
@@ -78,7 +78,7 @@ namespace ServiceLayer.Services
             if (!orgId.HasValue)
                 return null;
 
-            var plan = await _context.SubscriptionPlans.FirstOrDefaultAsync(p => p.Name == planName);
+            var plan = await _repository.SubscriptionPlans.FirstOrDefaultAsync(p => p.Name == planName);
             if (plan == null)
                 return null;
 
@@ -93,8 +93,8 @@ namespace ServiceLayer.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            _context.CheckoutSessions.Add(checkout);
-            await _context.SaveChangesAsync();
+            _repository.CheckoutSessions.Add(checkout);
+            await _repository.SaveChangesAsync();
             await _auditLogService.RecordAsync("StartCheckout", "CheckoutSession", checkout.Id, null, orgId.Value, $"Started checkout for {plan.Name}.");
             return ToCheckoutDto(checkout, plan.Name);
         }
@@ -105,7 +105,7 @@ namespace ServiceLayer.Services
                 return null;
 
             var orgId = await _organizationService.GetCurrentOrganizationIdAsync();
-            var checkout = await _context.CheckoutSessions
+            var checkout = await _repository.CheckoutSessions
                 .Include(c => c.Plan)
                 .FirstOrDefaultAsync(c => c.Id == id && c.OrganizationId == orgId);
 
@@ -118,14 +118,14 @@ namespace ServiceLayer.Services
                 return false;
 
             var orgId = await _organizationService.GetCurrentOrganizationIdAsync();
-            var checkout = await _context.CheckoutSessions
+            var checkout = await _repository.CheckoutSessions
                 .Include(c => c.Plan)
                 .FirstOrDefaultAsync(c => c.Id == id && c.OrganizationId == orgId && c.Status == "Pending");
 
             if (checkout == null || checkout.Plan == null)
                 return false;
 
-            var active = await _context.OrganizationSubscriptions
+            var active = await _repository.OrganizationSubscriptions
                 .Where(s => s.OrganizationId == checkout.OrganizationId && s.IsActive)
                 .ToListAsync();
 
@@ -135,7 +135,7 @@ namespace ServiceLayer.Services
                 subscription.EndDate = DateTime.UtcNow;
             }
 
-            _context.OrganizationSubscriptions.Add(new OrganizationSubscription
+            _repository.OrganizationSubscriptions.Add(new OrganizationSubscription
             {
                 OrganizationId = checkout.OrganizationId,
                 PlanId = checkout.PlanId,
@@ -146,7 +146,7 @@ namespace ServiceLayer.Services
             checkout.Status = "Paid";
             checkout.PaidAt = DateTime.UtcNow;
 
-            _context.BillingInvoices.Add(new BillingInvoice
+            _repository.BillingInvoices.Add(new BillingInvoice
             {
                 OrganizationId = checkout.OrganizationId,
                 PlanId = checkout.PlanId,
@@ -158,7 +158,7 @@ namespace ServiceLayer.Services
                 PaidAt = DateTime.UtcNow
             });
 
-            await _context.SaveChangesAsync();
+            await _repository.SaveChangesAsync();
             await _auditLogService.RecordAsync("PayCheckout", "CheckoutSession", checkout.Id, null, checkout.OrganizationId, $"Paid checkout for {checkout.Plan.Name}.");
             return true;
         }
@@ -172,7 +172,7 @@ namespace ServiceLayer.Services
             if (!orgId.HasValue)
                 return false;
 
-            var active = await _context.OrganizationSubscriptions
+            var active = await _repository.OrganizationSubscriptions
                 .Where(s => s.OrganizationId == orgId.Value && s.IsActive)
                 .ToListAsync();
 
@@ -182,8 +182,8 @@ namespace ServiceLayer.Services
                 subscription.EndDate = DateTime.UtcNow;
             }
 
-            var freePlan = await _context.SubscriptionPlans.FirstAsync(p => p.Name == AuthConstants.Free);
-            _context.OrganizationSubscriptions.Add(new OrganizationSubscription
+            var freePlan = await _repository.SubscriptionPlans.FirstAsync(p => p.Name == AuthConstants.Free);
+            _repository.OrganizationSubscriptions.Add(new OrganizationSubscription
             {
                 OrganizationId = orgId.Value,
                 PlanId = freePlan.Id,
@@ -191,7 +191,7 @@ namespace ServiceLayer.Services
                 StartDate = DateTime.UtcNow
             });
 
-            await _context.SaveChangesAsync();
+            await _repository.SaveChangesAsync();
             await _auditLogService.RecordAsync("CancelSubscription", "OrganizationSubscription", null, null, orgId.Value, "Cancelled subscription and moved organization to Free.");
             return true;
         }
@@ -239,3 +239,4 @@ namespace ServiceLayer.Services
         }
     }
 }
+

@@ -4,7 +4,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using DataAccessLayer.Data;
+using DataAccessLayer.Repositories;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -57,7 +57,7 @@ namespace ServiceLayer.Services
         private async Task ProcessAsync(int documentId, CancellationToken cancellationToken)
         {
             using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var context = scope.ServiceProvider.GetRequiredService<IDataRepository>();
             var httpClientFactory = scope.ServiceProvider.GetRequiredService<IHttpClientFactory>();
             var environment = scope.ServiceProvider.GetRequiredService<IWebHostEnvironment>();
             var auditLog = scope.ServiceProvider.GetRequiredService<IAuditLogService>();
@@ -146,7 +146,7 @@ namespace ServiceLayer.Services
         }
 
         private static async Task MarkFailedAsync(
-            ApplicationDbContext context,
+            IDataRepository context,
             IAuditLogService auditLog,
             IRealtimeNotificationService realtime,
             int documentId,

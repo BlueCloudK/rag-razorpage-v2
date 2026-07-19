@@ -3,172 +3,319 @@
 @{
     ViewData["Title"] = "Usage report";
     var isOrganizationScope = Model.Report.ScopeKind == "organization";
-    var totalTokens = Math.Max(Model.Report.TotalTokens, 1);
-    var inputPercent = Math.Round((double)Model.Report.TotalInputTokens / totalTokens * 100, 1);
-    var contextPercent = Math.Round((double)Model.Report.TotalRetrievedContextTokens / totalTokens * 100, 1);
-    var outputPercent = Math.Round((double)Model.Report.TotalOutputTokens / totalTokens * 100, 1);
-    var dailyUsageByDate = Model.Report.DailyUsages.ToDictionary(day => day.Date.Date);
     var reportDates = Enumerable.Range(0, (Model.Report.EndDate.Date - Model.Report.StartDate.Date).Days + 1)
         .Select(offset => Model.Report.StartDate.Date.AddDays(offset))
         .ToList();
+    var dailyUsageByDate = Model.Report.DailyUsages.ToDictionary(day => day.Date.Date);
+    var maxTokens = Math.Max(Model.MaxDailyTokens, 1);
+    var maxQuestions = Math.Max(Model.Report.DailyUsages.DefaultIfEmpty().Max(day => day?.QuestionCount ?? 0), 1);
+    var activeDays = Model.Report.DailyUsages.Count(day => day.TotalTokens > 0 || day.QuestionCount > 0);
+    var averageTokens = Model.Report.CompletedQuestionCount == 0
+        ? 0
+        : (int)Math.Round((double)Model.Report.TotalTokens / Model.Report.CompletedQuestionCount);
+    var activeLearners = Model.Report.LearnerUsages
+        .Where(learner => learner.TotalTokens > 0)
+        .Select(learner => learner.UserId)
+        .Distinct()
+        .Count();
+    var totalLearners = Model.Report.LearnerUsages
+        .Select(learner => learner.UserId)
+        .Distinct()
+        .Count();
+    var inactiveLearners = Math.Max(0, totalLearners - activeLearners);
+    var topUser = Model.Report.UserUsages.OrderByDescending(user => user.TotalTokens).FirstOrDefault();
+    var topLearner = Model.Report.LearnerUsages.OrderByDescending(learner => learner.TotalTokens).FirstOrDefault();
+    var topSubject = Model.Report.SubjectUsages.OrderByDescending(subject => subject.TotalTokens).FirstOrDefault();
+    var maxUserTokens = Math.Max(Model.Report.UserUsages.DefaultIfEmpty().Max(user => user?.TotalTokens ?? 0), 1);
+    var maxLearnerTokens = Math.Max(Model.Report.LearnerUsages.DefaultIfEmpty().Max(learner => learner?.TotalTokens ?? 0), 1);
+
+    const double plotLeft = 58;
+    const double plotRight = 976;
+    const double plotTop = 22;
+    const double plotBottom = 232;
+    var plotWidth = plotRight - plotLeft;
+    var plotHeight = plotBottom - plotTop;
+    var barWidth = Math.Min(26d, Math.Max(7d, plotWidth / Math.Max(reportDates.Count, 1) * 0.58d));
+    var questionPoints = string.Join(" ", reportDates.Select((date, index) =>
+    {
+        var questions = dailyUsageByDate.TryGetValue(date, out var day) ? day.QuestionCount : 0;
+        var x = reportDates.Count == 1 ? (plotLeft + plotRight) / 2 : plotLeft + (double)index / (reportDates.Count - 1) * plotWidth;
+        var y = plotBottom - (double)questions / maxQuestions * plotHeight;
+        return $"{x:F1},{y:F1}";
+    }));
+    var gridRatios = new[] { 0d, 0.25d, 0.5d, 0.75d, 1d };
+    var labelIndexes = new HashSet<int>
+    {
+        0,
+        Math.Max(0, (reportDates.Count - 1) / 4),
+        Math.Max(0, (reportDates.Count - 1) / 2),
+        Math.Max(0, (reportDates.Count - 1) * 3 / 4),
+        Math.Max(0, reportDates.Count - 1)
+    };
 }
 
 <section class="usage-report" aria-labelledby="report-title">
-    <header class="report-toolbar">
-        <div class="report-title">
-            <a class="back-link" asp-page="/Index"><i class="bi bi-arrow-left"></i><span>Workspace</span></a>
+    <header class="report-header">
+        <div class="report-identity">
+            <a class="back-button" asp-page="/Index" aria-label="Back to workspace"><i class="bi bi-arrow-left"></i></a>
             <div>
-                <p class="report-kicker">@Model.Report.ScopeLabel</p>
-                <h1 id="report-title">Usage report</h1>
-                <p>@Model.Report.ScopeDescription</p>
+                <div class="title-line">
+                    <h1 id="report-title">@(isOrganizationScope ? "Organization usage" : "Teaching usage")</h1>
+                    <span class="scope-badge">@Model.Report.ScopeLabel</span>
+                </div>
+                <p>@(isOrganizationScope
+                    ? "AI activity across the organization. No prompts or answer content are exposed."
+                    : "AI activity from students in the subjects you teach.")</p>
             </div>
         </div>
         <div class="report-actions">
-            @if (Model.Report.TokensAreEstimated)
+            @if (Model.Report.IsDemoData)
             {
-                <span class="report-badge"><i class="bi bi-info-circle"></i> Estimated tokens</span>
+                <span class="data-badge"><i class="bi bi-flask"></i> Demo</span>
             }
-            <a class="export-report" asp-page="/Reports/Usage" asp-page-handler="ExportCsv" asp-route-days="@Model.Days"><i class="bi bi-download"></i> Export CSV</a>
+            <a class="action-button" asp-page="/Reports/Index" asp-route-days="@Model.Days" asp-route-demo="@(!Model.Demo)">
+                <i class="bi bi-bar-chart-line"></i> @(Model.Demo ? "Actual data" : "Demo data")
+            </a>
+            <a class="action-button primary" asp-page="/Reports/Usage" asp-page-handler="ExportCsv" asp-route-days="@Model.Days" asp-route-demo="@Model.Demo">
+                <i class="bi bi-download"></i> Export
+            </a>
         </div>
     </header>
 
-    <section class="report-period" aria-label="Reporting period">
+    <section class="report-toolbar" aria-label="Report period">
         <div class="period-copy">
             <span>Reporting period</span>
             <strong>@Model.Report.StartDate.ToString("dd MMM yyyy") - @Model.Report.EndDate.ToString("dd MMM yyyy")</strong>
         </div>
-        <nav class="period-tabs" aria-label="Select reporting period">
+        <nav class="period-selector" aria-label="Select reporting period">
             @foreach (var days in new[] { 7, 30, 90 })
             {
-                <a class="period-tab @(Model.Days == days ? "is-active" : null)" asp-page="/Reports/Index" asp-route-days="@days" aria-current="@(Model.Days == days ? "page" : null)">
-                    <span>@days days</span>
-                </a>
+                <a class="period-option @(Model.Days == days ? "active" : null)" asp-page="/Reports/Index" asp-route-days="@days" asp-route-demo="@Model.Demo" aria-current="@(Model.Days == days ? "page" : null)">@days days</a>
             }
         </nav>
     </section>
 
-    <section class="report-metrics" aria-label="Usage summary">
+    <section class="metric-strip" aria-label="Usage summary">
         <article>
             <span>Total tokens</span>
             <strong>@Model.Report.TotalTokens.ToString("N0")</strong>
-            <small>Input, context, and answer output</small>
+            <small>@(Model.Report.TokensAreEstimated ? "Estimated local AI usage" : "Measured AI usage")</small>
         </article>
         <article>
             <span>Completed questions</span>
             <strong>@Model.Report.CompletedQuestionCount.ToString("N0")</strong>
-            <small>Successful AI responses in this period</small>
+            <small>Successful AI responses</small>
+        </article>
+        <article>
+            <span>Average tokens</span>
+            <strong>@averageTokens.ToString("N0")</strong>
+            <small>Per completed question</small>
         </article>
         <article>
             <span>@(isOrganizationScope ? "Active users" : "Active learners")</span>
-            <strong>@Model.Report.ActiveUserCount.ToString("N0")</strong>
-            <small>@(isOrganizationScope ? "Users with reportable activity" : "Aggregated activity in your subjects")</small>
-        </article>
-        <article>
-            <span>@(isOrganizationScope ? "Indexed documents" : "Teaching subjects")</span>
-            <strong>@(isOrganizationScope ? Model.Report.IndexedDocumentCount.ToString("N0") : Model.Report.AccessibleSubjectCount.ToString("N0"))</strong>
-            <small>@(isOrganizationScope ? "Available across the organization" : "Subjects assigned to you")</small>
+            <strong>@(isOrganizationScope ? Model.Report.ActiveUserCount.ToString("N0") : $"{activeLearners:N0}/{totalLearners:N0}")</strong>
+            <small>@(isOrganizationScope
+                ? $"Across {Model.Report.AccessibleSubjectCount} subjects"
+                : inactiveLearners == 0 ? "All enrolled students were active" : $"{inactiveLearners} students had no activity")</small>
         </article>
     </section>
 
     @if (!Model.HasUsage)
     {
-        <section class="report-zero" role="status">
-            <i class="bi bi-bar-chart-line" aria-hidden="true"></i>
+        <section class="empty-report" role="status">
+            <i class="bi bi-graph-up"></i>
             <div>
-                <h2>No AI activity has been recorded yet</h2>
-                <p>Usage is written after a successful document-grounded answer. Existing chat history is not backfilled into token records.</p>
+                <h2>No usage in this period</h2>
+                <p>Choose another period or generate demo data to preview this report.</p>
+            </div>
+        </section>
+
+    }
+    else
+    {
+        <section class="trend-panel" aria-labelledby="trend-title">
+            <div class="panel-header">
+                <div>
+                    <span class="eyebrow">Daily activity</span>
+                    <h2 id="trend-title">Tokens and completed questions</h2>
+                </div>
+                <div class="trend-summary">
+                    <span><b>@activeDays</b> active @(activeDays == 1 ? "day" : "days")</span>
+                    <span><b>@maxTokens.ToString("N0")</b> peak tokens</span>
+                </div>
+            </div>
+            <div class="chart-legend" aria-hidden="true">
+                <span class="tokens-key">Tokens</span>
+                <span class="questions-key">Questions</span>
+            </div>
+            <div class="chart-shell">
+                <svg class="usage-chart" viewBox="0 0 1000 274" preserveAspectRatio="none" role="img" aria-label="Daily token usage shown as bars and completed questions shown as a line">
+                    @foreach (var ratio in gridRatios)
+                    {
+                        var y = plotTop + ratio * plotHeight;
+                        var value = (int)Math.Round(maxTokens * (1 - ratio));
+                        <line class="grid-line" x1="@plotLeft" y1="@y" x2="@plotRight" y2="@y"></line>
+                        @Html.Raw($"<text x=\"{plotLeft - 10:F1}\" y=\"{y + 4:F1}\" fill=\"#7f899c\" font-size=\"10\" text-anchor=\"end\">{value:N0}</text>")
+                    }
+
+                    @foreach (var item in reportDates.Select((date, index) => new { date, index }))
+                    {
+                        var day = dailyUsageByDate.TryGetValue(item.date, out var usage) ? usage : null;
+                        var total = day?.TotalTokens ?? 0;
+                        var questions = day?.QuestionCount ?? 0;
+                        var x = reportDates.Count == 1 ? (plotLeft + plotRight) / 2 : plotLeft + (double)item.index / (reportDates.Count - 1) * plotWidth;
+                        var height = total == 0 ? 0 : Math.Max(4d, (double)total / maxTokens * plotHeight);
+                        if (total > 0)
+                        {
+                            <rect class="token-bar" x="@(x - barWidth / 2)" y="@(plotBottom - height)" width="@barWidth" height="@height" rx="3">
+                                <title>@item.date.ToString("dd MMM yyyy"): @total.ToString("N0") tokens, @questions questions</title>
+                            </rect>
+                        }
+                        if (labelIndexes.Contains(item.index))
+                        {
+                            @Html.Raw($"<text x=\"{x:F1}\" y=\"258\" fill=\"#7f899c\" font-size=\"10\" text-anchor=\"middle\">{item.date:dd MMM}</text>")
+                        }
+                    }
+
+                    @if (activeDays > 1)
+                    {
+                        <polyline class="question-line" points="@questionPoints"></polyline>
+                    }
+                    @foreach (var item in reportDates.Select((date, index) => new { date, index }))
+                    {
+                        var questions = dailyUsageByDate.TryGetValue(item.date, out var usage) ? usage.QuestionCount : 0;
+                        if (questions > 0)
+                        {
+                            var x = reportDates.Count == 1 ? (plotLeft + plotRight) / 2 : plotLeft + (double)item.index / (reportDates.Count - 1) * plotWidth;
+                            var y = plotBottom - (double)questions / maxQuestions * plotHeight;
+                            <circle class="question-point" cx="@x" cy="@y" r="5">
+                                <title>@item.date.ToString("dd MMM yyyy"): @questions completed questions</title>
+                            </circle>
+                        }
+                    }
+                </svg>
+            </div>
+        </section>
+
+        <section class="report-insights" aria-label="Usage highlights">
+            <article>
+                <i class="bi bi-person-up"></i>
+                <div>
+                    <span>@(isOrganizationScope ? "Most active user" : "Most active learner")</span>
+                    @if ((isOrganizationScope ? topUser?.TotalTokens : topLearner?.TotalTokens) > 0)
+                    {
+                        <strong>@(isOrganizationScope ? topUser!.UserName : topLearner!.UserName)</strong>
+                        <small>@(isOrganizationScope
+                            ? $"{topUser!.QuestionCount:N0} questions · {topUser.TotalTokens:N0} tokens"
+                            : $"{topLearner!.QuestionCount:N0} questions · {topLearner.TotalTokens:N0} tokens")</small>
+                    }
+                    else
+                    {
+                        <strong>No activity yet</strong>
+                        <small>No completed AI response in this period.</small>
+                    }
+                </div>
+            </article>
+            <article>
+                <i class="bi bi-journal-bookmark"></i>
+                <div>
+                    <span>Most active subject</span>
+                    @if (topSubject is not null && topSubject.TotalTokens > 0)
+                    {
+                        <strong>@topSubject.SubjectName</strong>
+                        <small>@topSubject.QuestionCount.ToString("N0") questions · @topSubject.TotalTokens.ToString("N0") tokens</small>
+                    }
+                    else
+                    {
+                        <strong>No subject activity</strong>
+                        <small>Subjects appear after a completed AI response.</small>
+                    }
+                </div>
+            </article>
+            <article>
+                <i class="bi bi-shield-check"></i>
+                <div>
+                    <span>Per-question guard</span>
+                    <strong>@Model.Report.TokenLimits.MaxTotalTokensPerQuestion.ToString("N0") tokens</strong>
+                    <small>Configured maximum across prompt, context, and answer.</small>
+                </div>
+            </article>
+        </section>
+    }
+
+    @if (isOrganizationScope)
+    {
+        <section class="activity-table-panel" aria-labelledby="user-activity-title">
+            <div class="panel-header table-header">
+                <div><span class="eyebrow">Organization</span><h2 id="user-activity-title">Usage by user</h2></div>
+                <span>@Model.Report.UserUsages.Count users</span>
+            </div>
+            <div class="table-scroll">
+                <table class="activity-table">
+                    <thead><tr><th>User</th><th>Role</th><th class="number">Questions</th><th>Usage</th><th class="number">Tokens</th></tr></thead>
+                    <tbody>
+                    @if (Model.Report.UserUsages.Count == 0)
+                    {
+                        <tr><td colspan="5" class="empty-cell">No user activity in this period.</td></tr>
+                    }
+                    else
+                    {
+                        @foreach (var user in Model.Report.UserUsages.OrderByDescending(user => user.TotalTokens))
+                        {
+                            <tr>
+                                <td><strong>@user.UserName</strong><small>@user.Email</small></td>
+                                <td><span class="role-badge">@user.SystemRole</span></td>
+                                <td class="number">@user.QuestionCount.ToString("N0")</td>
+                                <td class="usage-share-cell">
+                                    <span class="usage-share-track"><span style="width: @((double)user.TotalTokens / maxUserTokens * 100d)%"></span></span>
+                                </td>
+                                <td class="number"><strong>@user.TotalTokens.ToString("N0")</strong></td>
+                            </tr>
+                        }
+                    }
+                    </tbody>
+                </table>
             </div>
         </section>
     }
     else
     {
-        <section class="report-main-grid">
-            <article class="report-surface activity-surface">
-                <div class="surface-heading">
-                    <div>
-                        <span>Activity trend</span>
-                        <h2>Daily token usage</h2>
-                    </div>
-                    <strong>@Model.Report.DailyUsages.Count @(Model.Report.DailyUsages.Count == 1 ? "day" : "days") active</strong>
-                </div>
-                <div class="usage-bars" aria-label="Daily token usage">
-                    @foreach (var date in reportDates)
-                    {
-                        var total = dailyUsageByDate.TryGetValue(date, out var day) ? day.TotalTokens : 0;
-                        var height = total == 0 ? 3 : Math.Max(12, Math.Round((double)total / Model.MaxDailyTokens * 78));
-                        var showLabel = reportDates.Count <= 14 || date == reportDates.First() || date == reportDates.Last() || date.Day == 1;
-                        <div class="usage-bar @(total == 0 ? "empty" : null)">
-                            <span style="height:@height%" title="@date.ToString("dd MMM yyyy"): @total.ToString("N0") tokens"></span>
-                            <small>@(showLabel ? date.ToString("dd/MM") : "")</small>
-                        </div>
-                    }
-                </div>
-            </article>
-
-            <article class="report-surface token-surface">
-                <div class="surface-heading">
-                    <div>
-                        <span>Token composition</span>
-                        <h2>Where usage comes from</h2>
-                    </div>
-                </div>
-                <div class="token-list">
-                    <div><div><strong>Question input</strong><span>@inputPercent%</span></div><progress value="@Model.Report.TotalInputTokens" max="@totalTokens"></progress><b>@Model.Report.TotalInputTokens.ToString("N0")</b></div>
-                    <div><div><strong>Retrieved context</strong><span>@contextPercent%</span></div><progress value="@Model.Report.TotalRetrievedContextTokens" max="@totalTokens"></progress><b>@Model.Report.TotalRetrievedContextTokens.ToString("N0")</b></div>
-                    <div><div><strong>AI answer</strong><span>@outputPercent%</span></div><progress value="@Model.Report.TotalOutputTokens" max="@totalTokens"></progress><b>@Model.Report.TotalOutputTokens.ToString("N0")</b></div>
-                </div>
-            </article>
-        </section>
-    }
-
-    <section class="report-surface table-surface" aria-labelledby="subject-report-heading">
-        <div class="surface-heading">
-            <div>
-                <span>@(isOrganizationScope ? "Organization subjects" : "My teaching subjects")</span>
-                <h2 id="subject-report-heading">Activity by subject</h2>
+        <section class="activity-table-panel" aria-labelledby="learner-activity-title">
+            <div class="panel-header table-header">
+                <div><span class="eyebrow">Learners</span><h2 id="learner-activity-title">Student activity</h2></div>
+                <span>@Model.Report.LearnerUsages.Count students</span>
             </div>
-            <strong>@Model.Report.SubjectUsages.Count subjects</strong>
-        </div>
-        <div class="report-table-wrap">
-            <table class="report-table">
-                <thead><tr><th>Subject</th><th class="numeric">Questions</th><th class="numeric">Tokens</th><th class="numeric">Indexed documents</th></tr></thead>
-                <tbody>
-                @if (Model.Report.SubjectUsages.Count == 0)
-                {
-                    <tr><td colspan="4" class="empty-cell">No subject activity in this period.</td></tr>
-                }
-                else
-                {
-                    @foreach (var subject in Model.Report.SubjectUsages)
-                    {
-                        <tr><td><strong>@subject.SubjectName</strong><span>@subject.SubjectCode</span></td><td class="numeric">@subject.QuestionCount.ToString("N0")</td><td class="numeric">@subject.TotalTokens.ToString("N0")</td><td class="numeric">@subject.IndexedDocumentCount.ToString("N0")</td></tr>
-                    }
-                }
-                </tbody>
-            </table>
-        </div>
-    </section>
-
-    @if (isOrganizationScope)
-    {
-        <section class="report-surface table-surface" aria-labelledby="user-report-heading">
-            <div class="surface-heading">
-                <div><span>Organization users</span><h2 id="user-report-heading">Usage by user</h2></div>
-                <strong>@Model.Report.UserUsages.Count users</strong>
-            </div>
-            <div class="report-table-wrap">
-                <table class="report-table">
-                    <thead><tr><th>User</th><th>Role</th><th class="numeric">Questions</th><th class="numeric">Tokens</th></tr></thead>
+            <div class="table-scroll">
+                <table class="activity-table">
+                    <thead><tr><th>Student</th><th>Subject</th><th class="number">Questions</th><th>Usage</th><th class="number">Tokens</th><th>Last active</th></tr></thead>
                     <tbody>
-                    @if (Model.Report.UserUsages.Count == 0)
+                    @if (Model.Report.LearnerUsages.Count == 0)
                     {
-                        <tr><td colspan="4" class="empty-cell">No user activity in this period.</td></tr>
+                        <tr><td colspan="6" class="empty-cell">No students are assigned to these subjects.</td></tr>
                     }
                     else
                     {
-                        @foreach (var user in Model.Report.UserUsages)
+                        @foreach (var learner in Model.Report.LearnerUsages.OrderByDescending(learner => learner.TotalTokens))
                         {
-                            <tr><td><strong>@user.UserName</strong><span>@user.Email</span></td><td><span class="role-label">@user.SystemRole</span></td><td class="numeric">@user.QuestionCount.ToString("N0")</td><td class="numeric">@user.TotalTokens.ToString("N0")</td></tr>
+                            <tr>
+                                <td><strong>@learner.UserName</strong><small>@learner.Email</small></td>
+                                <td><strong>@learner.SubjectName</strong><small>@learner.SubjectCode</small></td>
+                                <td class="number">@learner.QuestionCount.ToString("N0")</td>
+                                <td class="usage-share-cell">
+                                    <span class="usage-share-track @(learner.TotalTokens == 0 ? "empty" : null)"><span style="width: @((double)learner.TotalTokens / maxLearnerTokens * 100d)%"></span></span>
+                                </td>
+                                <td class="number"><strong>@learner.TotalTokens.ToString("N0")</strong></td>
+                                <td>
+                                    @if (learner.LastActivityAt.HasValue)
+                                    {
+                                        <span>@learner.LastActivityAt.Value.ToLocalTime().ToString("dd MMM, HH:mm")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="inactive-badge">Not active</span>
+                                    }
+                                </td>
+                            </tr>
                         }
                     }
                     </tbody>

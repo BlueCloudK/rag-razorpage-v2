@@ -1,5 +1,5 @@
 using System.Threading.Tasks;
-using DataAccessLayer.Models;
+using DataAccessLayer.Entities;
 
 namespace ServiceLayer.Services
 {
