@@ -487,7 +487,7 @@ async def delete_indexed_document(document_id: str):
 
 
 @app.get("/api/documents/{document_id}/chunks")
-async def inspect_indexed_document_chunks(document_id: str, offset: int = 0, limit: int = 8):
+async def inspect_indexed_document_chunks(document_id: str, offset: int = 0, limit: int = 0):
     try:
         return rag_service.inspect_document_chunks(document_id, offset=offset, limit=limit)
     except Exception as e:
@@ -496,7 +496,7 @@ async def inspect_indexed_document_chunks(document_id: str, offset: int = 0, lim
 
 
 @app.get("/api/subjects/{subject_id}/chunks")
-async def inspect_indexed_subject_chunks(subject_id: int, offset: int = 0, limit: int = 8):
+async def inspect_indexed_subject_chunks(subject_id: int, offset: int = 0, limit: int = 0):
     try:
         return rag_service.inspect_subject_chunks(subject_id, offset=offset, limit=limit)
     except Exception as e:

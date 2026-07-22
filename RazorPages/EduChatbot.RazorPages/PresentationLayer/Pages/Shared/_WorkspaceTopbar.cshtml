@@ -1,0 +1,26 @@
+@using ServiceLayer.Services
+@{
+    var displayName = User.Identity?.Name ?? "Account";
+    var role = User.IsInRole(AuthConstants.Admin)
+        ? AuthConstants.Admin
+        : User.IsInRole(AuthConstants.Lecturer)
+            ? AuthConstants.Lecturer
+            : AuthConstants.Student;
+}
+<header class="workspace-topbar">
+    <a class="workspace-brand" asp-page="/Index">
+        <span class="workspace-brand-icon"><i class="bi bi-mortarboard-fill"></i></span>
+        EduChatbot
+    </a>
+    <div class="workspace-actions">
+        <span class="workspace-account"><i class="bi bi-person-circle"></i><strong>@displayName</strong><span>@role</span></span>
+        @if (User.IsInRole(AuthConstants.Admin))
+        {
+            <a class="workspace-button" asp-page="/Admin/Users"><i class="bi bi-sliders"></i> Admin</a>
+            <a class="workspace-button" asp-page="/Admin/Activity"><i class="bi bi-activity"></i> Logs</a>
+        }
+        <form method="post" asp-page="/Account/Logout" class="m-0">
+            <button class="workspace-button danger" type="submit"><i class="bi bi-box-arrow-right"></i> Logout</button>
+        </form>
+    </div>
+</header>

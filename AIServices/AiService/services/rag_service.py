@@ -760,15 +760,15 @@ class RagService:
             self.clear_runtime_caches()
         return len(ids)
 
-    def inspect_document_chunks(self, document_id, offset=0, limit=8):
+    def inspect_document_chunks(self, document_id, offset=0, limit=0):
         return self.inspect_chunks_by_filter({"document_id": str(document_id)}, str(document_id), offset, limit)
 
-    def inspect_subject_chunks(self, subject_id, offset=0, limit=8):
+    def inspect_subject_chunks(self, subject_id, offset=0, limit=0):
         return self.inspect_chunks_by_filter({"subject_id": int(subject_id)}, f"subject:{subject_id}", offset, limit)
 
-    def inspect_chunks_by_filter(self, where_filter, result_id, offset=0, limit=8):
+    def inspect_chunks_by_filter(self, where_filter, result_id, offset=0, limit=0):
         safe_offset = max(int(offset), 0)
-        safe_limit = min(max(int(limit), 1), 20)
+        requested_limit = int(limit)
         result = self.collection.get(
             where=where_filter,
             include=["documents", "metadatas", "embeddings"]
@@ -790,6 +790,7 @@ class RagService:
                 "embedding_preview": [round(float(value), 6) for value in embedding[:12]]
             })
         rows.sort(key=lambda row: int(row["metadata"].get("chunk_index", 0)))
+        safe_limit = len(rows) if requested_limit <= 0 else min(max(requested_limit, 1), len(rows))
         return {
             "document_id": str(result_id),
             "embedding_model": metadatas[0].get("embedding_model", self.embedding_model_name) if metadatas else self.embedding_model_name,

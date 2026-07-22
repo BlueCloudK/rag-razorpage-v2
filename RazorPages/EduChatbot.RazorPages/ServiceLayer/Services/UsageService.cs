@@ -1,20 +1,20 @@
 using System;
 using System.Threading.Tasks;
-using DataAccessLayer.Data;
-using DataAccessLayer.Models;
+using DataAccessLayer.Repositories;
+using DataAccessLayer.Entities;
 using Microsoft.EntityFrameworkCore;
-using ServiceLayer.Models;
+using ServiceLayer.Dtos;
 
 namespace ServiceLayer.Services
 {
     public class UsageService : IUsageService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IDataRepository _repository;
         private readonly ICurrentUserService _currentUser;
 
-        public UsageService(ApplicationDbContext context, ICurrentUserService currentUser)
+        public UsageService(IDataRepository context, ICurrentUserService currentUser)
         {
-            _context = context;
+            _repository = context;
             _currentUser = currentUser;
         }
 
@@ -26,7 +26,7 @@ namespace ServiceLayer.Services
 
             var today = DateTime.UtcNow.Date;
             var organizationId = await GetCurrentOrganizationIdAsync();
-            return await _context.QuestionUsages
+            return await _repository.QuestionUsages
                 .Where(u => u.UsageDate == today && (organizationId.HasValue ? u.OrganizationId == organizationId.Value : u.UserId == userId))
                 .SumAsync(u => u.QuestionCount);
         }
@@ -39,7 +39,7 @@ namespace ServiceLayer.Services
 
             var today = DateTime.UtcNow.Date;
             var organizationId = await GetCurrentOrganizationIdAsync();
-            var usage = await _context.QuestionUsages.FirstOrDefaultAsync(u =>
+            var usage = await _repository.QuestionUsages.FirstOrDefaultAsync(u =>
                 u.UserId == userId &&
                 u.OrganizationId == organizationId &&
                 u.UsageDate == today);
@@ -52,11 +52,11 @@ namespace ServiceLayer.Services
                     UsageDate = today,
                     QuestionCount = 0
                 };
-                _context.QuestionUsages.Add(usage);
+                _repository.QuestionUsages.Add(usage);
             }
 
             usage.QuestionCount++;
-            await _context.SaveChangesAsync();
+            await _repository.SaveChangesAsync();
         }
 
         public async Task RecordTokenUsageAsync(TokenUsageRecordInput input)
@@ -76,8 +76,8 @@ namespace ServiceLayer.Services
                 Timestamp = DateTime.UtcNow
             };
 
-            _context.TokenUsages.Add(usage);
-            await _context.SaveChangesAsync();
+            _repository.TokenUsages.Add(usage);
+            await _repository.SaveChangesAsync();
         }
 
         private async Task<int?> GetCurrentOrganizationIdAsync()
@@ -86,7 +86,7 @@ namespace ServiceLayer.Services
             if (string.IsNullOrEmpty(userId))
                 return null;
 
-            return await _context.OrganizationMembers
+            return await _repository.OrganizationMembers
                 .Where(m => m.UserId == userId && m.Organization!.IsActive)
                 .OrderBy(m => m.OrganizationId)
                 .Select(m => (int?)m.OrganizationId)
@@ -94,3 +94,4 @@ namespace ServiceLayer.Services
         }
     }
 }
+

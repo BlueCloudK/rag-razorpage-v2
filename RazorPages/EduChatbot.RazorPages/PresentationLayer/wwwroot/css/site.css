@@ -113,6 +113,34 @@ button, input, textarea { font: inherit; }
   color: var(--text) !important;
 }
 
+.app-links .nav-link.active {
+  background: rgba(109, 124, 255, 0.14);
+  border-color: rgba(109, 124, 255, 0.34);
+  color: #e9ecff !important;
+}
+
+.nav-account {
+  align-items: center;
+  display: flex;
+  margin-left: 8px;
+}
+
+.nav-user {
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  display: inline-flex;
+  font-size: .78rem;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+.nav-user strong { color: var(--text); }
+.nav-user span { color: #9da8ff; font-weight: 800; }
+
 .nav-cta {
   background: var(--brand) !important;
   color: #fff !important;
@@ -157,6 +185,80 @@ button, input, textarea { font: inherit; }
 .app-footer a {
   color: var(--muted);
 }
+
+.workspace-topbar {
+  align-items: center;
+  background: #121214;
+  border-bottom: 1px solid #25252b;
+  display: flex;
+  height: 64px;
+  justify-content: space-between;
+  padding: 0 28px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.workspace-brand {
+  align-items: center;
+  color: #f8f9fc;
+  display: inline-flex;
+  font-size: 1.05rem;
+  font-weight: 800;
+  gap: 10px;
+}
+
+.workspace-brand-icon {
+  align-items: center;
+  background: linear-gradient(135deg, #6875f5, #8755b9);
+  border-radius: 9px;
+  color: #fff;
+  display: inline-flex;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
+.workspace-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.workspace-account {
+  align-items: center;
+  background: #19191d;
+  border: 1px solid #303038;
+  border-radius: 999px;
+  color: #c6ccda;
+  display: inline-flex;
+  font-size: .8rem;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 11px;
+}
+
+.workspace-account strong { color: #f0f3f8; }
+.workspace-account span { color: #9ba6ff; font-weight: 800; }
+
+.workspace-button {
+  align-items: center;
+  background: #19191d;
+  border: 1px solid #303038;
+  border-radius: 8px;
+  color: #d7dce7;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: .78rem;
+  font-weight: 800;
+  gap: 7px;
+  min-height: 36px;
+  padding: 8px 11px;
+}
+
+.workspace-button:hover { background: rgba(102,117,238,.12); border-color: #6675ee; color: #fff; }
+.workspace-button.danger { background: #24191c; border-color: #4a2b31; color: #ff96a2; }
 
 .admin-topbar {
   align-items: center;
@@ -1232,6 +1334,46 @@ h1, h2 { margin: 0; }
   margin-top: 7px;
 }
 
+/* Report period links are deliberately independent controls, not one text row. */
+.usage-report .report-period .period-tabs {
+  align-items: stretch;
+  background: transparent;
+  border: 0;
+  display: inline-flex;
+  gap: 8px;
+  padding: 0;
+}
+
+.usage-report .report-period .period-tabs .period-tab {
+  align-items: center;
+  background: #151922;
+  border: 1px solid #46516a;
+  border-radius: 6px;
+  color: #d5dced;
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 800;
+  justify-content: center;
+  min-height: 38px;
+  min-width: 82px;
+  padding: 0 13px;
+  text-decoration: none;
+}
+
+.usage-report .report-period .period-tabs .period-tab:hover {
+  background: #252e42;
+  border-color: #7886aa;
+  color: #fff;
+}
+
+.usage-report .report-period .period-tabs .period-tab.is-active,
+.usage-report .report-period .period-tabs .period-tab[aria-current="page"] {
+  background: #6375e8 !important;
+  border-color: #a6b0ff !important;
+  box-shadow: 0 2px 8px rgba(52, 69, 176, 0.5);
+  color: #fff !important;
+}
+
 #chatForm {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -1260,8 +1402,11 @@ h1, h2 { margin: 0; }
   .topbar { align-items: flex-start; flex-direction: column; }
   .app-shell { padding: 22px 14px 42px; }
   .app-nav-inner { padding: 0 14px; }
+  .workspace-topbar { height: auto; padding: 12px 16px; align-items: flex-start; gap: 12px; flex-direction: column; }
+  .workspace-actions { width: 100%; }
   .app-links { align-items: stretch; padding: 12px 0; }
   .app-links .nav-link, .logout-link { justify-content: center; width: 100%; }
+  .nav-account { justify-content: center; margin: 4px 0; }
   .admin-console-shell { grid-template-columns: 1fr; }
   .admin-sidebar {
     border-bottom: 1px solid var(--line);

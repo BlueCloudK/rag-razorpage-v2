@@ -1,7 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using System.Text.Json;
-using ServiceLayer.Models;
+using ServiceLayer.Dtos;
 
 namespace ServiceLayer.Services
 {

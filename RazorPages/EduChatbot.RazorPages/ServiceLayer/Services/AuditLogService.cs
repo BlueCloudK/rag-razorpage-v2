@@ -2,23 +2,23 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using DataAccessLayer.Data;
-using DataAccessLayer.Models;
+using DataAccessLayer.Repositories;
+using DataAccessLayer.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using ServiceLayer.Models;
+using ServiceLayer.Dtos;
 
 namespace ServiceLayer.Services
 {
     public class AuditLogService : IAuditLogService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IDataRepository _repository;
         private readonly ICurrentUserService _currentUser;
         private readonly UserManager<ApplicationUser> _userManager;
 
-        public AuditLogService(ApplicationDbContext context, ICurrentUserService currentUser, UserManager<ApplicationUser> userManager)
+        public AuditLogService(IDataRepository context, ICurrentUserService currentUser, UserManager<ApplicationUser> userManager)
         {
-            _context = context;
+            _repository = context;
             _currentUser = currentUser;
             _userManager = userManager;
         }
@@ -34,13 +34,13 @@ namespace ServiceLayer.Services
         {
             if (!organizationId.HasValue && subjectId.HasValue)
             {
-                organizationId = await _context.Subjects
+                organizationId = await _repository.Subjects
                     .Where(s => s.Id == subjectId.Value)
                     .Select(s => s.OrganizationId)
                     .FirstOrDefaultAsync();
             }
 
-            _context.AuditLogs.Add(new AuditLog
+            _repository.AuditLogs.Add(new AuditLog
             {
                 ActorUserId = actorUserId,
                 ActorEmail = string.IsNullOrWhiteSpace(actorEmail) ? "system" : actorEmail,
@@ -54,12 +54,12 @@ namespace ServiceLayer.Services
                 CreatedAt = DateTime.UtcNow
             });
 
-            await _context.SaveChangesAsync();
+            await _repository.SaveChangesAsync();
         }
 
         public async Task<List<AuditLogDto>> GetRecentLogsAsync(int take = 80)
         {
-            var query = _context.AuditLogs.AsQueryable();
+            var query = _repository.AuditLogs.AsQueryable();
             if (!await _currentUser.IsInRoleAsync(AuthConstants.Admin))
             {
                 var lecturerSubjectIds = await GetLecturerSubjectIdsAsync();
@@ -87,7 +87,7 @@ namespace ServiceLayer.Services
 
         public async Task<List<SubjectUsageDto>> GetSubjectUsageAsync()
         {
-            var subjectsQuery = _context.Subjects.AsQueryable();
+            var subjectsQuery = _repository.Subjects.AsQueryable();
             if (!await _currentUser.IsInRoleAsync(AuthConstants.Admin))
             {
                 if (!await _currentUser.IsInRoleAsync(AuthConstants.Lecturer))
@@ -106,7 +106,7 @@ namespace ServiceLayer.Services
             if (!subjectIds.Any())
                 return new List<SubjectUsageDto>();
 
-            var questions = await _context.ChatMessages
+            var questions = await _repository.ChatMessages
                 .Where(m => m.Role == "User" && m.Session != null && subjectIds.Contains(m.Session.SubjectId))
                 .GroupBy(m => m.Session!.SubjectId)
                 .Select(g => new
@@ -143,7 +143,7 @@ namespace ServiceLayer.Services
             if (string.IsNullOrEmpty(userId))
                 return new List<int>();
 
-            return await _context.SubjectMemberships
+            return await _repository.SubjectMemberships
                 .Where(m => m.UserId == userId &&
                     (m.RoleInSubject == AuthConstants.Lecturer ||
                      m.RoleInSubject == AuthConstants.SubjectLead))
@@ -158,3 +158,4 @@ namespace ServiceLayer.Services
         }
     }
 }
+

@@ -7,7 +7,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
-using ServiceLayer.Models;
+using ServiceLayer.Dtos;
 
 namespace ServiceLayer.Services
 {

@@ -1,4 +1,4 @@
-﻿@page
+@page
 @model EduChatbot.RazorPages.Pages.Chat.IndexModel
 
 @{
@@ -141,12 +141,12 @@
         .src-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
         .inspect-modal { position: fixed; inset: 0; display: none; place-items: center; background: rgba(0,0,0,0.72); z-index: 50; padding: 18px; }
         .inspect-modal.show { display: grid; }
-        .inspect-dialog { width: min(1040px, 96vw); max-height: 90vh; overflow: hidden; border: 1px solid #2d2f38; border-radius: 12px; background: #15161a; box-shadow: 0 24px 80px rgba(0,0,0,0.45); }
+        .inspect-dialog { width: min(1560px, calc(100vw - 24px)); height: min(900px, 94vh); overflow: hidden; border: 1px solid #2d2f38; border-radius: 12px; background: #15161a; box-shadow: 0 24px 80px rgba(0,0,0,0.45); display: flex; flex-direction: column; }
         .inspect-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 18px 20px; border-bottom: 1px solid #2a2a2e; }
         .inspect-title { margin: 0; font-size: 1.05rem; font-weight: 800; color: #f5f7fb; display: flex; align-items: center; gap: 8px; }
         .inspect-subtitle { margin-top: 4px; color: #9aa0a6; font-size: .8rem; }
         .inspect-close { border: 0; background: transparent; color: #a4a9b6; font-size: 1.35rem; cursor: pointer; }
-        .inspect-body { padding: 16px 18px 20px; overflow-y: auto; max-height: calc(90vh - 82px); }
+        .inspect-body { padding: 14px 16px 16px; overflow: hidden; flex: 1; min-height: 0; }
         .inspect-overview { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
         .inspect-stat { min-width: 0; border: 1px solid #2a3040; border-radius: 10px; background: #11151f; padding: 11px 12px; }
         .inspect-stat span { display: block; color: #8f96a7; font-size: .62rem; text-transform: uppercase; letter-spacing: .06em; font-weight: 800; margin-bottom: 5px; }
@@ -198,6 +198,55 @@
         .chunk-text { color: #d8dde7; font-size: .76rem; line-height: 1.52; max-height: 180px; overflow: auto; white-space: pre-wrap; background: #121318; border: 1px solid #292d36; border-radius: 8px; padding: 9px; min-height: 110px; }
         .vector-preview { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 5px; }
         .vector-pill { border: 1px solid #35405f; border-radius: 999px; padding: 3px 7px; color: #b7c0ff; background: #1d2233; font-size: .68rem; }
+        .inspector-shell { height: 100%; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+        .inspector-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; flex: none; }
+        .inspector-summary-item { min-width: 0; border: 1px solid #2a3040; border-radius: 8px; background: #11141b; padding: 9px 11px; }
+        .inspector-summary-item span { display: block; margin-bottom: 3px; color: #81899a; font-size: .6rem; font-weight: 800; letter-spacing: .055em; text-transform: uppercase; }
+        .inspector-summary-item strong { display: block; color: #edf0f6; font-size: .76rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .inspector-summary-item.ok { border-color: #28543d; background: #111a16; }
+        .inspector-summary-item.ok strong { color: #9bdfab; }
+        .chunk-workspace { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 14px; flex: 1; min-height: 0; }
+        .chunk-browser, .chunk-detail-pane { min-height: 0; border: 1px solid #292d36; border-radius: 10px; background: #101116; overflow: hidden; }
+        .chunk-browser { display: flex; flex-direction: column; }
+        .chunk-browser-head { padding: 12px; border-bottom: 1px solid #292d36; background: #13151b; }
+        .chunk-browser-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 9px; }
+        .chunk-browser-title strong { color: #eef1f7; font-size: .82rem; }
+        .chunk-browser-title span { color: #8f96a7; font-size: .68rem; }
+        .chunk-search { width: 100%; height: 34px; border: 1px solid #303542; border-radius: 7px; background: #0d0f14; color: #e8eaed; padding: 0 10px; font-size: .74rem; outline: none; }
+        .chunk-search:focus { border-color: #667eea; box-shadow: 0 0 0 2px rgba(102,126,234,.14); }
+        .chunk-browser-list { flex: 1; min-height: 0; overflow-y: auto; padding: 7px; display: grid; align-content: start; gap: 5px; }
+        .chunk-browser-item { width: 100%; text-align: left; border: 1px solid transparent; border-radius: 8px; background: transparent; color: #cbd1dc; padding: 9px 10px; cursor: pointer; }
+        .chunk-browser-item:hover { background: #171920; border-color: #292e3a; }
+        .chunk-browser-item.active { background: #17203a; border-color: #4f67d8; box-shadow: inset 3px 0 0 #667eea; }
+        .chunk-browser-item-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #c8d0ff; font-size: .7rem; font-weight: 800; }
+        .chunk-browser-item-meta { margin-top: 4px; color: #858d9e; font-size: .62rem; line-height: 1.35; }
+        .chunk-browser-item-preview { margin-top: 5px; color: #aeb4bf; font-size: .66rem; line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+        .chunk-detail-pane { display: flex; flex-direction: column; }
+        .chunk-detail-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 14px; border-bottom: 1px solid #292d36; background: #13151b; }
+        .chunk-detail-title { min-width: 0; }
+        .chunk-detail-title strong { display: block; color: #eef1f7; font-size: .82rem; }
+        .chunk-detail-title span { display: block; margin-top: 3px; color: #8d95a5; font-size: .66rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .vector-proof-badge { flex: none; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #315d49; border-radius: 7px; background: #122019; color: #9bdfab; padding: 6px 8px; font-size: .66rem; font-weight: 800; }
+        .chunk-detail-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 13px; }
+        .chunk-proof-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .chunk-proof-panel { min-width: 0; border: 1px solid #292d36; border-radius: 9px; background: #121318; overflow: hidden; }
+        .chunk-proof-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 11px; border-bottom: 1px solid #292d36; color: #dce2ee; font-size: .69rem; font-weight: 800; }
+        .chunk-proof-head span { color: #81899a; font-size: .6rem; font-weight: 700; }
+        .chunk-proof-text { min-height: 260px; max-height: 370px; overflow: auto; padding: 11px; color: #d8dde7; font-size: .76rem; line-height: 1.58; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .chunk-proof-panel.contextual { border-color: #2c3b5c; background: #111722; }
+        .chunk-proof-panel.contextual .chunk-proof-text { color: #bfc9df; }
+        .chunk-record-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+        .chunk-record { border: 1px solid #292d36; border-radius: 8px; background: #111318; padding: 9px 10px; min-width: 0; }
+        .chunk-record span { display: block; margin-bottom: 4px; color: #7f8798; font-size: .59rem; font-weight: 800; text-transform: uppercase; letter-spacing: .045em; }
+        .chunk-record strong { display: block; color: #d9deea; font-size: .69rem; line-height: 1.4; overflow-wrap: anywhere; }
+        .chunk-record.vector { border-color: #315d49; background: #111a16; }
+        .chunk-record.vector strong { color: #9bdfab; }
+        .inspector-technical { flex: none; border: 1px solid #292d36; border-radius: 9px; background: #111216; }
+        .inspector-technical > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; list-style: none; cursor: pointer; color: #cfd5e0; font-size: .72rem; font-weight: 800; }
+        .inspector-technical > summary::-webkit-details-marker { display: none; }
+        .inspector-technical > summary span { color: #81899a; font-size: .63rem; font-weight: 600; }
+        .inspector-technical-content { max-height: 280px; overflow-y: auto; padding: 0 12px 12px; }
+        .inspector-technical-grid { display: grid; grid-template-columns: minmax(260px, .8fr) minmax(420px, 1.4fr); gap: 10px; }
         @@media (max-width: 860px) {
             .inspect-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .inspect-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -206,6 +255,15 @@
             .chunking-row.header { display: none; }
             .chunking-row > :nth-child(n+4):nth-child(-n+6) { display: none; }
             .chunking-row > span:last-child { grid-column: 1 / -1; }
+            .inspect-modal { padding: 0; }
+            .inspect-dialog { width: 100vw; height: 100vh; max-height: 100vh; border-radius: 0; }
+            .inspect-body { padding: 10px; overflow-y: auto; }
+            .inspector-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .chunk-workspace { grid-template-columns: 1fr; min-height: auto; }
+            .chunk-browser { height: 260px; }
+            .chunk-detail-pane { min-height: 520px; }
+            .chunk-proof-grid, .chunk-record-grid, .inspector-technical-grid { grid-template-columns: 1fr; }
+            .chunk-proof-text { min-height: 180px; max-height: 280px; }
         }
         
         /* Empty state */
@@ -383,6 +441,8 @@
         .bot-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
         .bot-avatar { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; }
         .bot-label { font-size: 0.8rem; font-weight: 600; color: #667eea; }
+        .message-trace-btn { margin-left: auto; border: 1px solid #2d3340; border-radius: 7px; background: #151820; color: #aeb8d4; padding: 5px 8px; font-size: .66rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+        .message-trace-btn:hover { border-color: #667eea; color: #fff; background: #1a2030; }
         .bot-content { font-size: 0.95rem; line-height: 1.7; color: #d4d4d8; }
         .bot-content h3 { font-size: 1rem; color: #f1f3f4; margin: 14px 0 8px; font-weight: 700; }
         .bot-content h3:first-child { margin-top: 0; }
@@ -570,7 +630,7 @@
                             </form>
                         </div>
                         <div class="history-list">
-                            @foreach (var session in Model.ChatSessions ?? Enumerable.Empty<ServiceLayer.Models.ChatSessionSummaryDto>())
+                            @foreach (var session in Model.ChatSessions ?? Enumerable.Empty<ServiceLayer.Dtos.ChatSessionSummaryDto>())
                             {
                                 <div class="history-item @(session.IsActive ? "active" : "")">
                                     <a class="text-decoration-none overflow-hidden" asp-page="/Chat/Index" asp-route-subjectId="@subjectId" asp-route-sessionId="@session.Id" asp-route-tab="chat">
@@ -631,10 +691,19 @@
                             }
                             else
                             {
+                                var tracePayload = string.IsNullOrWhiteSpace(msg.ProcessingTraceJson)
+                                    ? string.Empty
+                                    : Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(msg.ProcessingTraceJson));
                                 <div class="msg-bot">
                                     <div class="bot-header">
                                         <div class="bot-avatar"><i class="bi bi-stars"></i></div>
                                         <span class="bot-label">EduChatbot AI</span>
+                                        @if (!string.IsNullOrEmpty(tracePayload))
+                                        {
+                                            <button type="button" class="message-trace-btn" data-message-trace="@tracePayload" data-message-sources="@msg.SourceDocuments" title="Open the saved processing trace">
+                                                <i class="bi bi-diagram-3"></i> View trace
+                                            </button>
+                                        }
                                     </div>
                                     <div class="bot-content" data-markdown="@msg.Content"></div>
                                     
@@ -700,7 +769,7 @@
                         <div class="empty-hint"><i class="bi bi-person-check"></i>No organization members are available to add.</div>
                     }
                     <div class="workspace-grid">
-                        @foreach (var member in Model.SubjectMembers ?? Enumerable.Empty<ServiceLayer.Models.SubjectMembershipAdminDto>())
+                        @foreach (var member in Model.SubjectMembers ?? Enumerable.Empty<ServiceLayer.Dtos.SubjectMembershipAdminDto>())
                         {
                             var subjectRoleLabel = member.RoleInSubject == ServiceLayer.Services.AuthConstants.SubjectLead ? "Subject lead" : member.RoleInSubject;
                             var canEditSubjectRole = currentUserIsAdmin && !member.IsSystemAdmin && member.RoleInSubject != studentRole;
@@ -1531,14 +1600,52 @@
     }
 
     function setBotMessage(node, text, sourceDocuments, trace) {
+        const hasTrace = trace && Object.keys(trace).length > 0;
         node.innerHTML = `
             <div class="bot-header">
                 <div class="bot-avatar"><i class="bi bi-stars"></i></div>
                 <span class="bot-label">EduChatbot AI</span>
+                ${hasTrace ? '<button type="button" class="message-trace-btn" title="Open the saved processing trace"><i class="bi bi-diagram-3"></i> View trace</button>' : ''}
             </div>
             <div class="bot-content">${renderMarkdown(text)}</div>
             ${renderSources(sourceDocuments, trace)}`;
+        node.querySelector('.message-trace-btn')?.addEventListener('click', () => {
+            showMessageTrace(trace, sourceDocuments, true);
+        });
         scrollChatToBottom();
+    }
+
+    function decodePersistedTrace(value) {
+        try {
+            const bytes = Uint8Array.from(atob(value || ''), character => character.charCodeAt(0));
+            return JSON.parse(new TextDecoder('utf-8').decode(bytes));
+        } catch {
+            return null;
+        }
+    }
+
+    function showMessageTrace(trace, sourceDocuments, openDetails) {
+        if (!trace) return;
+        latestCircuitTrace = trace;
+        latestCircuitSources = sourceDocuments || '';
+        finishCircuit(trace, sourceDocuments || '');
+        if (openDetails) openCircuitTraceModal();
+    }
+
+    function initializePersistedTraceButtons() {
+        const buttons = Array.from(document.querySelectorAll('[data-message-trace]'));
+        buttons.forEach(button => {
+            button.addEventListener('click', () => {
+                const trace = decodePersistedTrace(button.dataset.messageTrace);
+                showMessageTrace(trace, button.dataset.messageSources || '', true);
+            });
+        });
+
+        const latestButton = buttons.at(-1);
+        if (latestButton) {
+            const latestTrace = decodePersistedTrace(latestButton.dataset.messageTrace);
+            showMessageTrace(latestTrace, latestButton.dataset.messageSources || '', false);
+        }
     }
 
     function setSending(isSending) {
@@ -2141,6 +2248,8 @@
         setCircuitState('Complete');
     }
 
+    initializePersistedTraceButtons();
+
     function stopCircuit() {
         clearCircuitTimers();
         setCircuitState('Stopped');
@@ -2205,109 +2314,37 @@
             const loadingNode = appendBotLoading();
             activeChatController = new AbortController();
 
-            const streamUrlObj = new URL(chatForm.action, window.location.origin);
-            streamUrlObj.searchParams.set('handler', 'SendMessageStream');
-            const streamUrl = streamUrlObj.toString();
+            const requestUrl = new URL(chatForm.action, window.location.origin);
+            requestUrl.searchParams.set('handler', 'SendMessage');
 
-            fetch(streamUrl, {
+            fetch(requestUrl.toString(), {
                 method: 'POST',
                 body: formData,
                 signal: activeChatController.signal,
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'text/event-stream',
+                    'Accept': 'application/json',
                     'RequestVerificationToken': requestToken(chatForm)
                 }
             })
                 .then(async response => {
-                    if (!response.ok || !response.body) {
-                        throw new Error('Khong nhan duoc stream tu AI.');
+                    const result = await response.json().catch(() => ({}));
+                    if (!response.ok || !result.success) {
+                        throw new Error(result.message || 'AI request failed before a final answer was returned.');
                     }
 
-                    const reader = response.body.getReader();
-                    const decoder = new TextDecoder('utf-8');
-                    let buffer = '';
-                    let finalData = null;
-                    let streamError = '';
-
-                    function consumeEvent(rawEvent) {
-                        if (!rawEvent.trim()) return;
-                        let eventName = 'message';
-                        const dataLines = [];
-                        rawEvent.split(/\r?\n/).forEach(line => {
-                            if (line.startsWith('event:')) eventName = line.slice(6).trim();
-                            if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart());
-                        });
-                        if (!dataLines.length) return;
-                        let payload = {};
-                        try {
-                            payload = JSON.parse(dataLines.join('\n'));
-                        } catch {
-                            return;
-                        }
-                        if (eventName === 'trace') {
-                            applyLiveTraceEvent(payload);
-                        } else if (eventName === 'final') {
-                            finalData = payload;
-                        } else if (eventName === 'error') {
-                            streamError = payload.message || 'AI stream error.';
-                            applyLiveTraceEvent({
-                                node: 'Context',
-                                status: 'error',
-                                output_summary: streamError
-                            });
-                        }
-                    }
-
-                    while (true) {
-                        const { value, done } = await reader.read();
-                        if (done) break;
-                        buffer += decoder.decode(value, { stream: true });
-                        const events = buffer.split(/\n\n/);
-                        buffer = events.pop() || '';
-                        events.forEach(consumeEvent);
-                    }
-                    if (buffer.trim()) consumeEvent(buffer);
-
-                    if (!finalData || !finalData.success) {
-                        throw new Error(finalData?.message || streamError || 'AI stream ended without a final answer.');
-                    }
-
-                    updateActiveSessionId(finalData.sessionId);
-                    setBotMessage(loadingNode, finalData.bot.content, finalData.bot.sourceDocuments, finalData.trace);
-                    finishCircuit(finalData.trace, finalData.bot.sourceDocuments);
+                    updateActiveSessionId(result.sessionId);
+                    setBotMessage(loadingNode, result.bot.content, result.bot.sourceDocuments, result.trace);
+                    finishCircuit(result.trace, result.bot.sourceDocuments);
                 })
-                .catch(async error => {
+                .catch(error => {
                     if (error.name === 'AbortError') {
                         loadingNode.remove();
                         stopCircuit();
                         return;
                     }
-
-                    try {
-                        const fallbackUrlObj = new URL(chatForm.action, window.location.origin);
-                        fallbackUrlObj.searchParams.set('handler', 'SendMessage');
-                        const fallbackResponse = await fetch(fallbackUrlObj.toString(), {
-                            method: 'POST',
-                            body: formData,
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'Accept': 'application/json',
-                                'RequestVerificationToken': requestToken(chatForm)
-                            }
-                        });
-                        const fallbackData = await fallbackResponse.json().catch(() => ({}));
-                        if (!fallbackResponse.ok || !fallbackData.success) {
-                            throw new Error(fallbackData.message || error.message || 'AI request failed.');
-                        }
-                        updateActiveSessionId(fallbackData.sessionId);
-                        setBotMessage(loadingNode, fallbackData.bot.content, fallbackData.bot.sourceDocuments, fallbackData.trace);
-                        finishCircuit(fallbackData.trace, fallbackData.bot.sourceDocuments);
-                        showRealtimeToast('Streaming trace failed, but the final answer was recovered.');
-                    } catch (fallbackError) {
-                        setBotMessage(loadingNode, fallbackError.message || error.message || 'Loi ket noi toi AI Engine.', '');
-                        failCircuit(fallbackError.message || error.message);
-                    }
+                    setBotMessage(loadingNode, error.message || 'Loi ket noi toi AI Engine.', '');
+                    failCircuit(error.message);
                 })
                 .finally(() => {
                     activeChatController = null;
@@ -2572,6 +2609,8 @@
     }
     
     // Confirm destructive document and chat actions with SweetAlert2.
+    let activeInspectorData = null;
+
     async function openChunkInspector(documentId, fileName) {
         const modal = document.getElementById('chunkInspector');
         const body = document.getElementById('inspectorBody');
@@ -2581,11 +2620,14 @@
         body.innerHTML = '<div class="text-center text-secondary py-4"><span class="spinner-border spinner-border-sm me-2"></span>Loading chunks...</div>';
 
         try {
-            const response = await fetch(`?handler=DocumentChunks&documentId=${documentId}&offset=0&limit=5`, { headers: { 'Accept': 'application/json' } });
+            const response = await fetch(`?handler=DocumentChunks&documentId=${documentId}&offset=0&limit=0`, { headers: { 'Accept': 'application/json' } });
             const data = await response.json();
             if (!response.ok) throw new Error(data.message || 'Cannot load chunks.');
+            activeInspectorData = data;
             body.innerHTML = renderChunkInspector(data);
+            initializeChunkInspector(data);
         } catch (error) {
+            activeInspectorData = null;
             body.innerHTML = `<div class="inspect-panel text-danger">${escapeHtml(error.message || 'Cannot load chunks.')}</div>`;
         }
     }
@@ -2594,6 +2636,7 @@
         const modal = document.getElementById('chunkInspector');
         modal.classList.remove('show');
         modal.setAttribute('aria-hidden', 'true');
+        activeInspectorData = null;
     }
 
     document.addEventListener('click', function (event) {
@@ -2689,8 +2732,123 @@
         </details>`;
     }
 
+    function inspectorChunkMeta(chunk) {
+        const meta = chunk?.metadata || {};
+        return {
+            index: meta.chunkIndex ?? meta.chunk_index ?? 0,
+            length: meta.chunkLength ?? meta.chunk_length ?? (chunk?.text || '').length,
+            page: meta.pageNumber ?? meta.page_number ?? '',
+            chapter: meta.chapterNumber ?? meta.chapter_number ?? '',
+            chapterTitle: meta.chapterTitle ?? meta.chapter_title ?? '',
+            section: meta.sectionTitle ?? meta.section_title ?? meta.sectionPath ?? meta.section_path ?? '',
+            contextualText: meta.contextualText ?? meta.contextual_text ?? '',
+            contextSource: meta.contextSource ?? meta.context_source ?? 'legacy index',
+            subjectId: meta.subjectId ?? meta.subject_id ?? '-',
+            documentId: meta.documentId ?? meta.document_id ?? '',
+            source: meta.source ?? meta.fileName ?? meta.file_name ?? ''
+        };
+    }
+
+    function renderChunkBrowserItem(chunk, position) {
+        const meta = inspectorChunkMeta(chunk);
+        const location = [
+            meta.page ? `Page ${meta.page}` : '',
+            meta.chapter ? `Chapter ${meta.chapter}` : '',
+            meta.section || ''
+        ].filter(Boolean).join(' · ') || 'No page or section metadata';
+        return `<button type="button" class="chunk-browser-item${position === 0 ? ' active' : ''}" data-inspector-chunk="${position}" aria-pressed="${position === 0 ? 'true' : 'false'}">
+            <div class="chunk-browser-item-head"><span>Chunk ${meta.index}</span><span>${meta.length} chars</span></div>
+            <div class="chunk-browser-item-meta">${escapeHtml(location)}</div>
+            <div class="chunk-browser-item-preview">${escapeHtml(compactText(chunk.text || '', 150))}</div>
+        </button>`;
+    }
+
+    function renderChunkDetail(chunk, data) {
+        if (!chunk) {
+            return '<div class="empty-hint"><i class="bi bi-file-earmark-x"></i>No stored chunk selected.</div>';
+        }
+
+        const meta = inspectorChunkMeta(chunk);
+        const rawMeta = chunk.metadata || {};
+        const embeddingModel = data.embeddingModel || data.embedding_model || rawMeta.embeddingModel || rawMeta.embedding_model || 'Qwen/Qwen3-Embedding-0.6B';
+        const dimensions = chunk.embeddingDimensions || chunk.embedding_dimensions || 0;
+        const originalText = chunk.text || '';
+        const contextualText = meta.contextualText || originalText;
+        const location = [
+            meta.page ? `Page ${meta.page}` : '',
+            meta.chapter ? `Chapter ${meta.chapter}${meta.chapterTitle ? `: ${meta.chapterTitle}` : ''}` : '',
+            meta.section || ''
+        ].filter(Boolean).join(' · ') || 'No structural location metadata';
+
+        return `<div class="chunk-detail-toolbar">
+            <div class="chunk-detail-title">
+                <strong>${escapeHtml(chunk.id || `Chunk ${meta.index}`)}</strong>
+                <span>${escapeHtml(location)}</span>
+            </div>
+            <span class="vector-proof-badge"><i class="bi bi-database-check"></i> Vector stored · ${dimensions || 'unknown'} dimensions</span>
+        </div>
+        <div class="chunk-detail-scroll">
+            <div class="chunk-proof-grid">
+                <section class="chunk-proof-panel">
+                    <div class="chunk-proof-head">Original chunk <span>shown in citations</span></div>
+                    <div class="chunk-proof-text">${escapeHtml(originalText)}</div>
+                </section>
+                <section class="chunk-proof-panel contextual">
+                    <div class="chunk-proof-head">Text used for embedding <span>${escapeHtml(meta.contextSource)}</span></div>
+                    <div class="chunk-proof-text">${escapeHtml(contextualText)}</div>
+                </section>
+            </div>
+            <div class="chunk-record-grid" aria-label="Stored chunk and embedding record">
+                <div class="chunk-record"><span>Chunk record</span><strong>#${meta.index} · ${meta.length} characters</strong></div>
+                <div class="chunk-record"><span>Document scope</span><strong>document_id = ${escapeHtml(meta.documentId || data.documentId || data.document_id || '-')}</strong></div>
+                <div class="chunk-record"><span>Subject scope</span><strong>subject_id = ${escapeHtml(meta.subjectId)}</strong></div>
+                <div class="chunk-record"><span>Storage</span><strong>ChromaDB / edu_documents</strong></div>
+                <div class="chunk-record"><span>Embedding model</span><strong>${escapeHtml(embeddingModel)}</strong></div>
+                <div class="chunk-record vector"><span>Vector proof</span><strong><i class="bi bi-check-circle-fill"></i> ${dimensions || 'Unknown'} numeric dimensions stored</strong></div>
+            </div>
+        </div>`;
+    }
+
+    function initializeChunkInspector(data) {
+        const chunks = Array.isArray(data.chunks) ? data.chunks : [];
+        const detailPane = document.getElementById('inspectorChunkDetail');
+        const searchInput = document.getElementById('inspectorChunkSearch');
+        const visibleCount = document.getElementById('inspectorVisibleCount');
+
+        document.querySelectorAll('[data-inspector-chunk]').forEach(button => {
+            button.addEventListener('click', () => {
+                document.querySelectorAll('[data-inspector-chunk]').forEach(item => {
+                    item.classList.toggle('active', item === button);
+                    item.setAttribute('aria-pressed', item === button ? 'true' : 'false');
+                });
+                const selected = chunks[Number(button.dataset.inspectorChunk)];
+                if (detailPane) detailPane.innerHTML = renderChunkDetail(selected, data);
+            });
+        });
+
+        searchInput?.addEventListener('input', () => {
+            const query = searchInput.value.trim().toLowerCase();
+            let count = 0;
+            let firstVisible = null;
+            document.querySelectorAll('[data-inspector-chunk]').forEach(button => {
+                const chunk = chunks[Number(button.dataset.inspectorChunk)];
+                const meta = inspectorChunkMeta(chunk);
+                const haystack = [chunk?.id, chunk?.text, meta.page, meta.chapter, meta.chapterTitle, meta.section].join(' ').toLowerCase();
+                const visible = !query || haystack.includes(query);
+                button.hidden = !visible;
+                if (visible) {
+                    firstVisible ??= button;
+                    count++;
+                }
+            });
+            if (visibleCount) visibleCount.textContent = `${count} of ${chunks.length}`;
+            if (query && firstVisible) firstVisible.click();
+        });
+    }
+
     function renderChunkInspector(data) {
-        const firstChunk = (data.chunks || [])[0] || {};
+        const chunkItems = Array.isArray(data.chunks) ? data.chunks : [];
+        const firstChunk = chunkItems[0] || {};
         const meta = firstChunk.metadata || {};
         const embeddingModel = data.embeddingModel || data.embedding_model || meta.embeddingModel || meta.embedding_model || 'Qwen/Qwen3-Embedding-0.6B';
         const dimensions = firstChunk.embeddingDimensions || firstChunk.embedding_dimensions || 0;
@@ -2701,88 +2859,48 @@
         const chunkingProfile = getMetaValue(meta, 'chunkingProfile', 'chunking_profile', 'balanced');
         const configuredChunkSize = Number(getMetaValue(meta, 'chunkSize', 'chunk_size', 0)) || 850;
         const configuredChunkOverlap = Number(getMetaValue(meta, 'chunkOverlap', 'chunk_overlap', 0)) || 120;
-        const chunks = (data.chunks || []).map(chunk => {
-            const preview = (chunk.embeddingPreview || []).slice(0, 12)
-                .map(v => `<span class="vector-pill">${Number(v).toFixed(4)}</span>`)
-                .join('');
-            const chunkMeta = chunk.metadata || {};
-            const page = chunkMeta.pageNumber ?? chunkMeta.page_number;
-            const chapter = chunkMeta.chapterNumber ?? chunkMeta.chapter_number;
-            const section = chunkMeta.sectionTitle ?? chunkMeta.section_title ?? chunkMeta.sectionPath ?? chunkMeta.section_path;
-            const contextualText = chunkMeta.contextualText ?? chunkMeta.contextual_text ?? '';
-            const contextSource = chunkMeta.contextSource ?? chunkMeta.context_source ?? '';
-            const metaLine = [
-                `chunk #${chunkMeta.chunkIndex ?? chunkMeta.chunk_index ?? 0}`,
-                `${chunkMeta.chunkLength ?? chunkMeta.chunk_length ?? 0} chars`,
-                `${chunk.embeddingDimensions || chunk.embedding_dimensions || 0} dims`,
-                page ? `page ${page}` : '',
-                chapter ? `chapter ${chapter}` : '',
-                section ? escapeHtml(section) : ''
-            ].filter(Boolean).join(' · ');
-            const originalText = compactText(chunk.text || '', 1000);
-            const embeddingText = compactText(contextualText || chunk.text || '', 1000);
-            const isFirst = Number(chunkMeta.chunkIndex ?? chunkMeta.chunk_index ?? -1) === 0;
-            return `<details class="chunk-card" ${isFirst ? 'open' : ''}>
-                <summary>
-                    <div class="chunk-head"><span><i class="bi bi-file-earmark-text"></i>${escapeHtml(chunk.id)}</span><span>${page ? `page ${page}` : 'stored chunk'}</span></div>
-                    <div class="chunk-meta-line">${metaLine}</div>
-                </summary>
-                <div class="chunk-card-body">
-                    <div class="chunk-content-grid">
-                        <div>
-                            <div class="chunk-content-label">Original text <span>used for citation</span></div>
-                            <div class="chunk-text">${escapeHtml(originalText)}</div>
-                        </div>
-                        <div>
-                            <div class="chunk-content-label">Contextual text <span>${escapeHtml(contextSource || 'legacy')}</span></div>
-                            <div class="chunk-context">${escapeHtml(embeddingText)}</div>
-                        </div>
-                    </div>
-                    <div class="vector-preview">${preview || '<span class="text-secondary small">Vector preview is unavailable for this chunk.</span>'}</div>
-                </div>
-            </details>`;
-        }).join('');
+        const browserItems = chunkItems.map(renderChunkBrowserItem).join('');
 
-        return `<div class="inspect-overview">
-            <div class="inspect-stat success"><span>Index status</span><strong><i class="bi bi-check-circle-fill"></i> Indexed</strong></div>
-            <div class="inspect-stat"><span>Upload profile</span><strong>${escapeHtml(chunkingProfile)}</strong></div>
-            <div class="inspect-stat"><span>Stored chunks</span><strong>${data.total || 0}</strong></div>
-            <div class="inspect-stat"><span>Embedding vector</span><strong>${dimensions || 'unknown'} dimensions</strong></div>
-        </div>
-        <div class="inspect-flow" aria-label="Document indexing flow">
-            <div class="inspect-flow-step" data-step="01"><strong>Extract</strong><span>Read PDF, DOCX, or PPTX text.</span></div>
-            <div class="inspect-flow-step" data-step="02"><strong>Chunk</strong><span>${configuredChunkSize} size · ${configuredChunkOverlap} overlap.</span></div>
-            <div class="inspect-flow-step" data-step="03"><strong>Embed</strong><span>${escapeHtml(embeddingModel)}</span></div>
-            <div class="inspect-flow-step" data-step="04"><strong>Store</strong><span>Chroma vector + SQL metadata.</span></div>
-        </div>
-        ${renderChunkingDecision(meta)}
-        <div class="inspect-grid">
-            <div>
-                <div class="inspect-panel">
-                    <h4>Actual index metadata</h4>
-                    <div class="inspect-kv">
-                        <span>Collection</span><strong>edu_documents</strong>
-                        <span>Embedding model</span><strong>${escapeHtml(embeddingModel)}</strong>
-                        <span>Vector dimensions</span><strong>${dimensions || 'unknown'}</strong>
-                        <span>Upload profile</span><strong>${escapeHtml(chunkingProfile)}</strong>
-                        <span>Chunk config</span><strong>size = ${configuredChunkSize}, overlap = ${configuredChunkOverlap}</strong>
-                        <span>Chunking strategy</span><strong>${escapeHtml(chunkingStrategy)} (${chunkingScore.toFixed(2)})</strong>
-                        <span>Subject scope</span><strong>subject_id = ${subjectScope}</strong>
-                        <span>Document metadata</span><strong>document_id = ${escapeHtml(documentId)}</strong>
-                        <span>Total chunks</span><strong>${data.total || 0}</strong>
-                        <span>Showing</span><strong>${(data.offset || 0) + 1}-${(data.offset || 0) + (data.chunks?.length || 0)}</strong>
+        return `<div class="inspector-shell">
+            <div class="inspector-summary">
+                <div class="inspector-summary-item ok"><span>Index status</span><strong><i class="bi bi-check-circle-fill"></i> Indexed and searchable</strong></div>
+                <div class="inspector-summary-item"><span>Stored chunks</span><strong>${data.total || chunkItems.length} records</strong></div>
+                <div class="inspector-summary-item"><span>Embedding</span><strong>${dimensions || 'unknown'} dimensions</strong></div>
+                <div class="inspector-summary-item"><span>Model</span><strong title="${escapeHtml(embeddingModel)}">${escapeHtml(embeddingModel)}</strong></div>
+            </div>
+            <div class="chunk-workspace">
+                <aside class="chunk-browser" aria-label="Stored chunks">
+                    <div class="chunk-browser-head">
+                        <div class="chunk-browser-title"><strong><i class="bi bi-collection"></i> Stored chunks</strong><span id="inspectorVisibleCount">${chunkItems.length} of ${chunkItems.length}</span></div>
+                        <input class="chunk-search" id="inspectorChunkSearch" type="search" placeholder="Find text, page, chapter, or section..." aria-label="Search stored chunks" />
+                    </div>
+                    <div class="chunk-browser-list">${browserItems || '<div class="empty-hint">No chunks returned from AI Service.</div>'}</div>
+                </aside>
+                <main class="chunk-detail-pane" id="inspectorChunkDetail">${renderChunkDetail(firstChunk, data)}</main>
+            </div>
+            <details class="inspector-technical">
+                <summary><span><i class="bi bi-sliders"></i> Index configuration and adaptive chunking</span><span>Open technical details <i class="bi bi-chevron-down"></i></span></summary>
+                <div class="inspector-technical-content">
+                    <div class="inspector-technical-grid">
+                        <div class="inspect-panel">
+                            <h4>Index metadata</h4>
+                            <div class="inspect-kv">
+                                <span>Collection</span><strong>edu_documents</strong>
+                                <span>Profile</span><strong>${escapeHtml(chunkingProfile)}</strong>
+                                <span>Chunk config</span><strong>${configuredChunkSize} size · ${configuredChunkOverlap} overlap</strong>
+                                <span>Strategy</span><strong>${escapeHtml(chunkingStrategy)} (${chunkingScore.toFixed(2)})</strong>
+                                <span>Subject</span><strong>subject_id = ${subjectScope}</strong>
+                                <span>Document</span><strong>document_id = ${escapeHtml(documentId)}</strong>
+                            </div>
+                            <div class="storage-grid">
+                                <div class="storage-card"><strong><i class="bi bi-database"></i> SQL Server</strong>Document identity, ownership, status, and chunk count.</div>
+                                <div class="storage-card"><strong><i class="bi bi-hdd-network"></i> ChromaDB</strong>Original chunk, contextual text, vector, and retrieval metadata.</div>
+                            </div>
+                        </div>
+                        ${renderChunkingDecision(meta)}
                     </div>
                 </div>
-                <div class="storage-grid">
-                    <div class="storage-card"><strong><i class="bi bi-database"></i> SQL Server</strong>File name, subject, owner, index status, chunk count, chat sessions, and audit events.</div>
-                    <div class="storage-card"><strong><i class="bi bi-hdd-network"></i> ChromaDB</strong>Chunk text, embedding vector, source metadata, and retrieval scope.</div>
-                </div>
-            </div>
-            <div class="inspect-panel">
-                <h4>Stored chunks and vector preview</h4>
-                <p class="chunking-reason">Open a chunk to compare the original text used for citation with the contextual text used for embedding and retrieval.</p>
-                <div class="chunk-list">${chunks || '<div class="text-secondary">No chunks returned from AI service.</div>'}</div>
-            </div>
+            </details>
         </div>`;
     }
 

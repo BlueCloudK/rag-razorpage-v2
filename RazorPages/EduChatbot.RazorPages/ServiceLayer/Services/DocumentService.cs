@@ -6,18 +6,19 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Net;
 using System.Threading.Tasks;
-using DataAccessLayer.Data;
-using DataAccessLayer.Models;
+using DataAccessLayer.Repositories;
+using DataAccessLayer.Entities;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using ServiceLayer.Models;
+using ServiceLayer.Dtos;
+using ServiceLayer.Options;
 
 namespace ServiceLayer.Services
 {
     public class DocumentService : IDocumentService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IDataRepository _repository;
         private readonly IWebHostEnvironment _environment;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IAccessControlService _accessControl;
@@ -28,7 +29,7 @@ namespace ServiceLayer.Services
         private readonly IDocumentIndexingQueue _indexingQueue;
 
         public DocumentService(
-            ApplicationDbContext context,
+            IDataRepository context,
             IWebHostEnvironment environment,
             IHttpClientFactory httpClientFactory,
             IAccessControlService accessControl,
@@ -38,7 +39,7 @@ namespace ServiceLayer.Services
             IRealtimeNotificationService realtime,
             IDocumentIndexingQueue indexingQueue)
         {
-            _context = context;
+            _repository = context;
             _environment = environment;
             _httpClientFactory = httpClientFactory;
             _accessControl = accessControl;
@@ -51,12 +52,12 @@ namespace ServiceLayer.Services
 
         public async Task<List<DocumentDto>> GetAllAsync()
         {
-            IQueryable<Document> query = _context.Documents.Include(d => d.Subject);
+            IQueryable<Document> query = _repository.Documents.Include(d => d.Subject);
 
             if (!await _accessControl.IsAdminAsync())
             {
                 var userId = _currentUser.UserId;
-                query = query.Where(d => _context.SubjectMemberships.Any(m => m.SubjectId == d.SubjectId && m.UserId == userId));
+                query = query.Where(d => _repository.SubjectMemberships.Any(m => m.SubjectId == d.SubjectId && m.UserId == userId));
             }
 
             var documents = await query
@@ -76,7 +77,7 @@ namespace ServiceLayer.Services
 
         public async Task<DocumentDto?> GetByIdAsync(int id)
         {
-            var document = await _context.Documents
+            var document = await _repository.Documents
                 .Include(d => d.Subject)
                 .FirstOrDefaultAsync(d => d.Id == id);
 
@@ -88,9 +89,9 @@ namespace ServiceLayer.Services
             return dto;
         }
 
-        public async Task<DocumentChunkInspectorDto?> GetChunkInspectorAsync(int id, int offset = 0, int limit = 8)
+        public async Task<DocumentChunkInspectorDto?> GetChunkInspectorAsync(int id, int offset = 0, int limit = 0)
         {
-            var document = await _context.Documents.FirstOrDefaultAsync(d => d.Id == id);
+            var document = await _repository.Documents.FirstOrDefaultAsync(d => d.Id == id);
             if (document == null || !await _accessControl.CanViewSubjectAsync(document.SubjectId))
                 return null;
 
@@ -116,7 +117,8 @@ namespace ServiceLayer.Services
         private static async Task<DocumentChunkInspectorDto?> ReadChunkInspectorAsync(HttpClient client, string documentId, int offset, int limit)
         {
             var safeDocumentId = WebUtility.UrlEncode(documentId);
-            using var response = await client.GetAsync($"/api/documents/{safeDocumentId}/chunks?offset={Math.Max(offset, 0)}&limit={Math.Clamp(limit, 1, 20)}");
+            var requestedLimit = limit <= 0 ? 0 : Math.Clamp(limit, 1, 20);
+            using var response = await client.GetAsync($"/api/documents/{safeDocumentId}/chunks?offset={Math.Max(offset, 0)}&limit={requestedLimit}");
             if (!response.IsSuccessStatusCode)
                 return null;
 
@@ -130,7 +132,8 @@ namespace ServiceLayer.Services
 
         private static async Task<DocumentChunkInspectorDto?> ReadSubjectChunkInspectorAsync(HttpClient client, int subjectId, int offset, int limit)
         {
-            using var response = await client.GetAsync($"/api/subjects/{subjectId}/chunks?offset={Math.Max(offset, 0)}&limit={Math.Clamp(limit, 1, 20)}");
+            var requestedLimit = limit <= 0 ? 0 : Math.Clamp(limit, 1, 20);
+            using var response = await client.GetAsync($"/api/subjects/{subjectId}/chunks?offset={Math.Max(offset, 0)}&limit={requestedLimit}");
             if (!response.IsSuccessStatusCode)
                 return null;
 
@@ -179,7 +182,7 @@ namespace ServiceLayer.Services
             }
 
             var normalizedFileName = Path.GetFileName(file.FileName).Trim();
-            var duplicateNameExists = await _context.Documents
+            var duplicateNameExists = await _repository.Documents
                 .AnyAsync(d => d.SubjectId == subjectId && d.FileName == normalizedFileName);
             if (duplicateNameExists)
             {
@@ -219,8 +222,8 @@ namespace ServiceLayer.Services
                 ChunkOverlap = validatedChunking.ChunkOverlap
             };
 
-            _context.Documents.Add(document);
-            await _context.SaveChangesAsync();
+            _repository.Documents.Add(document);
+            await _repository.SaveChangesAsync();
             await _auditLogService.RecordAsync("UploadStarted", "Document", document.Id, subjectId, null, $"Uploaded document metadata for {document.FileName} using {validatedChunking.Profile} chunking ({validatedChunking.ChunkSize}/{validatedChunking.ChunkOverlap}).");
             await _realtime.DocumentChangedAsync("uploaded", subjectId, document.Id, document.FileName);
             await _indexingQueue.QueueAsync(new DocumentIndexingJob(document.Id));
@@ -239,7 +242,7 @@ namespace ServiceLayer.Services
 
         public async Task<bool> DeleteAsync(int id)
         {
-            var document = await _context.Documents.FindAsync(id);
+            var document = await _repository.Documents.FindAsync(id);
             if (document == null)
                 return false;
 
@@ -263,8 +266,8 @@ namespace ServiceLayer.Services
                 // Deleting DB metadata should still succeed if the AI service is offline.
             }
 
-            _context.Documents.Remove(document);
-            await _context.SaveChangesAsync();
+            _repository.Documents.Remove(document);
+            await _repository.SaveChangesAsync();
             await _auditLogService.RecordAsync("Delete", "Document", id, subjectId, null, $"Deleted document {fileName}.");
             await _realtime.DocumentChangedAsync("deleted", subjectId, id, fileName);
             return true;
@@ -283,3 +286,4 @@ namespace ServiceLayer.Services
         }
     }
 }
+

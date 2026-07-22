@@ -3,6 +3,7 @@
 @{
     ViewData["Title"] = "Detailed usage report";
     var hasUsage = Model.Report.UserUsages.Count > 0 || Model.Report.SubjectUsages.Count > 0;
+    var isOrganizationScope = Model.Report.ScopeKind == "organization";
 }
 
 <section class="usage-page">
@@ -10,8 +11,8 @@
         <div class="usage-heading">
             <a class="back-link" asp-page="/Reports/Index" aria-label="Back to reports overview">← Reports overview</a>
             <p class="eyebrow">Reports and statistics</p>
-            <h1>Detailed usage</h1>
-            <p>Inspect privacy-safe usage totals by user and subject. Conversation messages, answers, prompts, and source content are never shown.</p>
+            <h1>@(isOrganizationScope ? "Organization usage details" : "Teaching analytics details")</h1>
+            <p>@(isOrganizationScope ? "Inspect privacy-safe usage totals by user and subject." : "Inspect privacy-safe activity and token totals for subjects you teach.") Conversation messages, answers, prompts, and source content are never shown.</p>
         </div>
         <a class="export-button" asp-page-handler="ExportCsv" asp-route-days="@Model.Days">Export CSV</a>
     </header>
@@ -46,6 +47,8 @@
         </div>
     }
 
+    @if (isOrganizationScope)
+    {
     <section class="report-panel" aria-labelledby="user-usage-heading">
         <div class="panel-heading">
             <div>
@@ -99,13 +102,14 @@
             </table>
         </div>
     </section>
+    }
 
     <section class="report-panel" aria-labelledby="subject-usage-heading">
         <div class="panel-heading">
             <div>
-                <p class="section-kicker">Subjects</p>
-                <h2 id="subject-usage-heading">Activity by subject</h2>
-                <p>Activity totals contain counts only and do not expose question or document content.</p>
+                <p class="section-kicker">@(isOrganizationScope ? "Subjects" : "My teaching subjects")</p>
+                <h2 id="subject-usage-heading">@(isOrganizationScope ? "Activity by subject" : "Learner activity by subject")</h2>
+                <p>@(isOrganizationScope ? "Activity totals contain counts only and do not expose question or document content." : "Aggregated learner activity for your subjects. Individual student usage is not shown.")</p>
             </div>
             <span class="row-count">@Model.Report.SubjectUsages.Count @(Model.Report.SubjectUsages.Count == 1 ? "subject" : "subjects")</span>
         </div>

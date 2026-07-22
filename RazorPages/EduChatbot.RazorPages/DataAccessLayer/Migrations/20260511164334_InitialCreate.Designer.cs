@@ -25,7 +25,7 @@ namespace DataAccessLayer.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("DataAccessLayer.Models.ChatMessage", b =>
+            modelBuilder.Entity("DataAccessLayer.Entities.ChatMessage", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -59,7 +59,7 @@ namespace DataAccessLayer.Migrations
                     b.ToTable("ChatMessages");
                 });
 
-            modelBuilder.Entity("DataAccessLayer.Models.ChatSession", b =>
+            modelBuilder.Entity("DataAccessLayer.Entities.ChatSession", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -80,7 +80,7 @@ namespace DataAccessLayer.Migrations
                     b.ToTable("ChatSessions");
                 });
 
-            modelBuilder.Entity("DataAccessLayer.Models.Document", b =>
+            modelBuilder.Entity("DataAccessLayer.Entities.Document", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -114,7 +114,7 @@ namespace DataAccessLayer.Migrations
                     b.ToTable("Documents");
                 });
 
-            modelBuilder.Entity("DataAccessLayer.Models.Subject", b =>
+            modelBuilder.Entity("DataAccessLayer.Entities.Subject", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -137,9 +137,9 @@ namespace DataAccessLayer.Migrations
                     b.ToTable("Subjects");
                 });
 
-            modelBuilder.Entity("DataAccessLayer.Models.ChatMessage", b =>
+            modelBuilder.Entity("DataAccessLayer.Entities.ChatMessage", b =>
                 {
-                    b.HasOne("DataAccessLayer.Models.ChatSession", "Session")
+                    b.HasOne("DataAccessLayer.Entities.ChatSession", "Session")
                         .WithMany("Messages")
                         .HasForeignKey("SessionId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -148,9 +148,9 @@ namespace DataAccessLayer.Migrations
                     b.Navigation("Session");
                 });
 
-            modelBuilder.Entity("DataAccessLayer.Models.ChatSession", b =>
+            modelBuilder.Entity("DataAccessLayer.Entities.ChatSession", b =>
                 {
-                    b.HasOne("DataAccessLayer.Models.Subject", "Subject")
+                    b.HasOne("DataAccessLayer.Entities.Subject", "Subject")
                         .WithMany("ChatSessions")
                         .HasForeignKey("SubjectId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -159,9 +159,9 @@ namespace DataAccessLayer.Migrations
                     b.Navigation("Subject");
                 });
 
-            modelBuilder.Entity("DataAccessLayer.Models.Document", b =>
+            modelBuilder.Entity("DataAccessLayer.Entities.Document", b =>
                 {
-                    b.HasOne("DataAccessLayer.Models.Subject", "Subject")
+                    b.HasOne("DataAccessLayer.Entities.Subject", "Subject")
                         .WithMany("Documents")
                         .HasForeignKey("SubjectId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -170,12 +170,12 @@ namespace DataAccessLayer.Migrations
                     b.Navigation("Subject");
                 });
 
-            modelBuilder.Entity("DataAccessLayer.Models.ChatSession", b =>
+            modelBuilder.Entity("DataAccessLayer.Entities.ChatSession", b =>
                 {
                     b.Navigation("Messages");
                 });
 
-            modelBuilder.Entity("DataAccessLayer.Models.Subject", b =>
+            modelBuilder.Entity("DataAccessLayer.Entities.Subject", b =>
                 {
                     b.Navigation("ChatSessions");
 

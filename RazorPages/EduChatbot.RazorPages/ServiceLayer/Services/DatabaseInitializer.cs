@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
-using DataAccessLayer.Data;
-using DataAccessLayer.Models;
+using DataAccessLayer.Repositories;
+using DataAccessLayer.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,9 +14,9 @@ namespace ServiceLayer.Services
         public static async Task InitializeEduChatbotDatabaseAsync(this IServiceProvider services, bool seedDemoUsers = false)
         {
             using var scope = services.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            await db.Database.MigrateAsync();
-            await db.Database.ExecuteSqlRawAsync("""
+            var db = scope.ServiceProvider.GetRequiredService<IDataRepository>();
+            await db.MigrateAsync();
+            await db.ExecuteSqlAsync("""
                 IF COL_LENGTH('Documents', 'ChunkCount') IS NULL
                     ALTER TABLE Documents ADD ChunkCount int NOT NULL CONSTRAINT DF_Documents_ChunkCount DEFAULT 0;
                 IF COL_LENGTH('Documents', 'IndexStatus') IS NULL
@@ -31,6 +31,8 @@ namespace ServiceLayer.Services
                     ALTER TABLE Documents ADD ChunkSize int NOT NULL CONSTRAINT DF_Documents_ChunkSize DEFAULT 850;
                 IF COL_LENGTH('Documents', 'ChunkOverlap') IS NULL
                     ALTER TABLE Documents ADD ChunkOverlap int NOT NULL CONSTRAINT DF_Documents_ChunkOverlap DEFAULT 120;
+                IF COL_LENGTH('ChatMessages', 'ProcessingTraceJson') IS NULL
+                    ALTER TABLE ChatMessages ADD ProcessingTraceJson nvarchar(max) NULL;
             """);
             await EnsureSaaSSchemaAsync(db);
 
@@ -46,7 +48,7 @@ namespace ServiceLayer.Services
             }
         }
 
-        private static async Task SeedPlansAsync(ApplicationDbContext db)
+        private static async Task SeedPlansAsync(IDataRepository db)
         {
             await UpsertPlanAsync(db, AuthConstants.Free, 20, 3, 5, 1, 30, allowGemini: false, isUnlimited: false);
             await UpsertPlanAsync(db, AuthConstants.Pro, 300, 50, 50, 10, 120, allowGemini: true, isUnlimited: false);
@@ -55,7 +57,7 @@ namespace ServiceLayer.Services
         }
 
         private static async Task UpsertPlanAsync(
-            ApplicationDbContext db,
+            IDataRepository db,
             string name,
             int questions,
             int documents,
@@ -91,9 +93,9 @@ namespace ServiceLayer.Services
             plan.IsUnlimited = isUnlimited;
         }
 
-        private static async Task EnsureSaaSSchemaAsync(ApplicationDbContext db)
+        private static async Task EnsureSaaSSchemaAsync(IDataRepository db)
         {
-            await db.Database.ExecuteSqlRawAsync("""
+            await db.ExecuteSqlAsync("""
                 IF OBJECT_ID(N'[Organizations]', N'U') IS NULL
                 BEGIN
                     CREATE TABLE [Organizations] (
@@ -251,10 +253,40 @@ namespace ServiceLayer.Services
                     CREATE INDEX [IX_TokenUsages_SubjectId_Timestamp] ON [TokenUsages] ([SubjectId], [Timestamp]);
                     CREATE INDEX [IX_TokenUsages_ChatSessionId] ON [TokenUsages] ([ChatSessionId]);
                 END;
+
+                -- A pre-team report prototype used legacy column names. Upgrade that
+                -- table in place so existing local usage data is preserved.
+                IF OBJECT_ID(N'[TokenUsages]', N'U') IS NOT NULL
+                BEGIN
+                    IF COL_LENGTH('TokenUsages', 'SessionId') IS NOT NULL
+                       AND COL_LENGTH('TokenUsages', 'ChatSessionId') IS NULL
+                        EXEC sp_rename N'dbo.TokenUsages.SessionId', N'ChatSessionId', N'COLUMN';
+
+                    IF COL_LENGTH('TokenUsages', 'ContextTokens') IS NOT NULL
+                       AND COL_LENGTH('TokenUsages', 'RetrievedContextTokens') IS NULL
+                        EXEC sp_rename N'dbo.TokenUsages.ContextTokens', N'RetrievedContextTokens', N'COLUMN';
+
+                    IF COL_LENGTH('TokenUsages', 'Model') IS NOT NULL
+                       AND COL_LENGTH('TokenUsages', 'ModelName') IS NULL
+                        EXEC sp_rename N'dbo.TokenUsages.Model', N'ModelName', N'COLUMN';
+
+                    IF COL_LENGTH('TokenUsages', 'CreatedAt') IS NOT NULL
+                       AND COL_LENGTH('TokenUsages', 'Timestamp') IS NULL
+                        EXEC sp_rename N'dbo.TokenUsages.CreatedAt', N'Timestamp', N'COLUMN';
+
+                    IF COL_LENGTH('TokenUsages', 'ChatSessionId') IS NULL
+                        ALTER TABLE [TokenUsages] ADD [ChatSessionId] int NULL;
+                    IF COL_LENGTH('TokenUsages', 'RetrievedContextTokens') IS NULL
+                        ALTER TABLE [TokenUsages] ADD [RetrievedContextTokens] int NOT NULL CONSTRAINT [DF_TokenUsages_RetrievedContextTokens] DEFAULT 0;
+                    IF COL_LENGTH('TokenUsages', 'ModelName') IS NULL
+                        ALTER TABLE [TokenUsages] ADD [ModelName] nvarchar(max) NOT NULL CONSTRAINT [DF_TokenUsages_ModelName] DEFAULT N'local-rag';
+                    IF COL_LENGTH('TokenUsages', 'Timestamp') IS NULL
+                        ALTER TABLE [TokenUsages] ADD [Timestamp] datetime2 NOT NULL CONSTRAINT [DF_TokenUsages_Timestamp] DEFAULT SYSUTCDATETIME();
+                END;
             """);
         }
 
-        private static async Task SeedDefaultOrganizationAsync(ApplicationDbContext db)
+        private static async Task SeedDefaultOrganizationAsync(IDataRepository db)
         {
             var org = await db.Organizations.FirstOrDefaultAsync(o => o.Slug == "bluecloud-academy");
             if (org == null)
@@ -301,7 +333,7 @@ namespace ServiceLayer.Services
             }
         }
 
-        private static async Task SeedDemoUsersAsync(ApplicationDbContext db, UserManager<ApplicationUser> userManager)
+        private static async Task SeedDemoUsersAsync(IDataRepository db, UserManager<ApplicationUser> userManager)
         {
             await EnsureUserAsync(db, userManager, "admin@educhatbot.local", "Admin Demo", "Admin@12345!", AuthConstants.Admin);
             await EnsureUserAsync(db, userManager, "lecturer@educhatbot.local", "Lecturer Demo", "Lecturer@12345!", AuthConstants.Lecturer);
@@ -309,7 +341,7 @@ namespace ServiceLayer.Services
         }
 
         private static async Task EnsureUserAsync(
-            ApplicationDbContext db,
+            IDataRepository db,
             UserManager<ApplicationUser> userManager,
             string email,
             string fullName,

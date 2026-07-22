@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using ServiceLayer.Models;
+using ServiceLayer.Dtos;
 using ServiceLayer.Services;
 
 namespace EduChatbot.RazorPages.Pages.Subjects;

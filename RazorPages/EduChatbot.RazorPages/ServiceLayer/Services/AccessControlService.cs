@@ -1,17 +1,17 @@
-using System.Threading.Tasks;
-using DataAccessLayer.Data;
+﻿using System.Threading.Tasks;
+using DataAccessLayer.Repositories;
 using Microsoft.EntityFrameworkCore;
 
 namespace ServiceLayer.Services
 {
     public class AccessControlService : IAccessControlService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IDataRepository _repository;
         private readonly ICurrentUserService _currentUser;
 
-        public AccessControlService(ApplicationDbContext context, ICurrentUserService currentUser)
+        public AccessControlService(IDataRepository context, ICurrentUserService currentUser)
         {
-            _context = context;
+            _repository = context;
             _currentUser = currentUser;
         }
 
@@ -28,7 +28,7 @@ namespace ServiceLayer.Services
             if (await IsAdminAsync())
                 return true;
 
-            return await _context.SubjectMemberships.AnyAsync(m =>
+            return await _repository.SubjectMemberships.AnyAsync(m =>
                 m.SubjectId == subjectId &&
                 m.UserId == _currentUser.UserId);
         }
@@ -41,7 +41,7 @@ namespace ServiceLayer.Services
             if (await IsAdminAsync())
                 return true;
 
-            return await _context.SubjectMemberships.AnyAsync(m =>
+            return await _repository.SubjectMemberships.AnyAsync(m =>
                 m.SubjectId == subjectId &&
                 m.UserId == _currentUser.UserId &&
                 m.RoleInSubject == AuthConstants.SubjectLead);
@@ -55,7 +55,7 @@ namespace ServiceLayer.Services
             if (await IsAdminAsync())
                 return false;
 
-            return await _context.SubjectMemberships.AnyAsync(m =>
+            return await _repository.SubjectMemberships.AnyAsync(m =>
                 m.SubjectId == subjectId &&
                 m.UserId == _currentUser.UserId &&
                 m.RoleInSubject == AuthConstants.SubjectLead);
@@ -69,10 +69,11 @@ namespace ServiceLayer.Services
             if (await IsAdminAsync())
                 return false;
 
-            return await _context.SubjectMemberships.AnyAsync(m =>
+            return await _repository.SubjectMemberships.AnyAsync(m =>
                 m.SubjectId == subjectId &&
                 m.UserId == _currentUser.UserId &&
                 m.RoleInSubject == AuthConstants.SubjectLead);
         }
     }
 }
+
